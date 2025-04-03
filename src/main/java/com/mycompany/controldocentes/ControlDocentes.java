@@ -1,12 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
 
 package com.mycompany.controldocentes;
 
 /**
- *
- * @author zatan
+ *integrantes:  Kelvin Calle
+ *              Denilson Apaza
  */
 import java.awt.*;
 import java.sql.*;
