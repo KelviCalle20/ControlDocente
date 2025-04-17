@@ -5,12 +5,17 @@ package com.mycompany.controldocentes;
  *integrantes:  Kelvin Calle
  *              Denilson Apaza
  */
+// Asegúrate de importar todas las librerías necesarias
+// Asegúrate de importar todas las librerías necesarias 
+import com.fazecast.jSerialComm.SerialPort;
 import java.awt.*;
 import java.sql.*;
+import java.util.Scanner;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
 public class ControlDocentes {
+
     private static Connection conexion;
     private static JFrame ventana;
     private static JTable tabla;
@@ -31,60 +36,95 @@ public class ControlDocentes {
     }
 
     private static void crearVentana() {
-        ventana = new JFrame("Menú Principal - Gestión de Docentes");
+        ventana = new JFrame("Control de Docentes");
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         ventana.setSize(600, 400);
-        ventana.setLocationRelativeTo(null); // Centra la ventana
+        ventana.setLayout(null);
 
-        JMenuBar menuBar = new JMenuBar();
+        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");
+        Image imagenOriginal = originalIcon.getImage();
+        Image imagenEscalada = imagenOriginal.getScaledInstance(600, 400, Image.SCALE_SMOOTH);
+        ImageIcon iconoEscalado = new ImageIcon(imagenEscalada);
+        JLabel fondo = new JLabel(iconoEscalado);
+        fondo.setBounds(0, 0, 600, 400);
 
-        JMenu menuOpciones = new JMenu("Opciones");
+        JLabel titulo = new JLabel("CONTROL DE DOCENTES");
+        titulo.setFont(new Font("Arial", Font.BOLD, 24));
+        titulo.setForeground(Color.WHITE);
+        titulo.setBounds(180, 20, 400, 30);
 
-        JMenuItem itemInsertar = new JMenuItem("Insertar Datos");
-        itemInsertar.addActionListener(e -> insertarDatos());
+        JComboBox<String> opciones = new JComboBox<>(new String[]{
+            "Seleccionar una opción...",
+            "Insertar Datos",
+            "Eliminar Registro",
+            "Mostrar Registros",
+            "Eliminar Tabla",
+            "Iniciar Control"
+        });
+        opciones.setBounds(180, 80, 250, 30);
 
-        JMenuItem itemEliminar = new JMenuItem("Eliminar Registro");
-        itemEliminar.addActionListener(e -> eliminarRegistro());
+        opciones.addActionListener(e -> {
+            String opcion = (String) opciones.getSelectedItem();
+            switch (opcion) {
+                case "Insertar Datos":
+                    insertarDatos();
+                    break;
+                case "Eliminar Registro":
+                    eliminarRegistro();
+                    break;
+                case "Mostrar Registros":
+                    mostrarDatos();
+                    break;
+                case "Eliminar Tabla":
+                    eliminarTabla();
+                    break;
+                case "Iniciar Control":
+                    iniciarControlRFID();
+                    break;
+            }
+        });
 
-        JMenuItem itemMostrar = new JMenuItem("Mostrar Registros");
-        itemMostrar.addActionListener(e -> mostrarDatos());
-
-        JMenuItem itemEliminarTabla = new JMenuItem("Eliminar Tabla");
-        itemEliminarTabla.addActionListener(e -> eliminarTabla());
-
-        JMenuItem itemSalir = new JMenuItem("Salir");
-        itemSalir.addActionListener(e -> System.exit(0));
-
-        menuOpciones.add(itemInsertar);
-        menuOpciones.add(itemEliminar);
-        menuOpciones.add(itemMostrar);
-        menuOpciones.add(itemEliminarTabla);
-        menuOpciones.addSeparator();
-        menuOpciones.add(itemSalir);
-
-        menuBar.add(menuOpciones);
-        ventana.setJMenuBar(menuBar);
-
-        JLabel etiquetaBienvenida = new JLabel("Bienvenido al Sistema de Gestión de Docentes", JLabel.CENTER);
-        etiquetaBienvenida.setFont(new Font("Arial", Font.BOLD, 18));
-        ventana.add(etiquetaBienvenida);
+        ventana.setContentPane(fondo);
+        fondo.setLayout(null);
+        fondo.add(titulo);
+        fondo.add(opciones);
 
         ventana.setVisible(true);
     }
 
     private static void insertarDatos() {
         JDialog dialogo = new JDialog(ventana, "Insertar Datos", true);
-        dialogo.setLayout(new GridLayout(11, 2));
+        dialogo.setLayout(new GridLayout(11, 2, 5, 5));
 
-        String[] etiquetas = {"Código Docente:", "Nombre:", "Apellido Paterno:", "Apellido Materno:",
+        String[] etiquetas = {"Código Docente (escaneado):", "Nombre:", "Apellido Paterno:", "Apellido Materno:",
             "Hora Entrada:", "Hora Salida:", "Cantidad Alumnado:", "Materia:", "Aula:", "Turno:"};
         JTextField[] campos = new JTextField[10];
 
         for (int i = 0; i < 10; i++) {
             dialogo.add(new JLabel(etiquetas[i]));
             campos[i] = new JTextField();
+            campos[i].setEditable(i != 0);
             dialogo.add(campos[i]);
         }
+
+        new Thread(() -> {
+            SerialPort puerto = SerialPort.getCommPorts()[0];
+            puerto.setComPortParameters(9600, 8, 1, 0);
+            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+            if (puerto.openPort()) {
+                Scanner scanner = new Scanner(puerto.getInputStream());
+                while (dialogo.isVisible()) {
+                    if (scanner.hasNextLine()) {
+                        String codigo = scanner.nextLine().trim();
+                        System.out.println("RFID leído: " + codigo);
+                        SwingUtilities.invokeLater(() -> campos[0].setText(codigo));
+                        break;
+                    }
+                }
+                scanner.close();
+                puerto.closePort();
+            }
+        }).start();
 
         JButton btnInsertar = new JButton("Insertar");
         btnInsertar.addActionListener(e -> {
@@ -101,46 +141,110 @@ public class ControlDocentes {
             }
         });
 
+        dialogo.add(new JLabel());
         dialogo.add(btnInsertar);
         dialogo.pack();
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
 
-    private static void eliminarRegistro() {
-        String codDocente = JOptionPane.showInputDialog(ventana, "Ingrese Código de Docente a eliminar:");
-        if (codDocente != null && !codDocente.trim().isEmpty()) {
-            try (PreparedStatement stmt = conexion.prepareStatement("DELETE FROM docentes WHERE cod_docente = ?")) {
-                stmt.setString(1, codDocente);
-                int filas = stmt.executeUpdate();
-                if (filas > 0) {
-                    JOptionPane.showMessageDialog(ventana, "Registro eliminado correctamente.");
-                } else {
-                    JOptionPane.showMessageDialog(ventana, "No se encontró el código ingresado.");
+    private static void iniciarControlRFID() {
+        JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
+        lectorDialog.setSize(300, 150);
+        lectorDialog.setLayout(new BorderLayout());
+
+        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta RFID...", SwingConstants.CENTER);
+        lectorDialog.add(mensaje, BorderLayout.CENTER);
+
+        new Thread(() -> {
+            SerialPort puerto = SerialPort.getCommPorts()[0];
+            puerto.setComPortParameters(9600, 8, 1, 0);
+            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+            if (puerto.openPort()) {
+                Scanner scanner = new Scanner(puerto.getInputStream());
+                while (lectorDialog.isVisible()) {
+                    if (scanner.hasNextLine()) {
+                        String uid = scanner.nextLine().trim();
+                        System.out.println("UID detectado: " + uid);
+                        mostrarDatosDocente(uid);
+                        lectorDialog.dispose();
+                        break;
+                    }
                 }
-            } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
+                scanner.close();
+                puerto.closePort();
             }
+        }).start();
+
+        lectorDialog.setLocationRelativeTo(ventana);
+        lectorDialog.setVisible(true);
+    }
+
+    private static void mostrarDatosDocente(String uid) {
+        try {
+            String query = "SELECT cod_docente, nombre, apellido_paterno, apellido_materno, materia, aula, hora_entrada FROM docentes WHERE cod_docente = ?";
+            PreparedStatement stmt = conexion.prepareStatement(query);
+            stmt.setString(1, uid);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                String codDocente = rs.getString("cod_docente");
+                String nombre = rs.getString("nombre");
+                String apPaterno = rs.getString("apellido_paterno");
+                String apMaterno = rs.getString("apellido_materno");
+                String nombreCompleto = nombre + " " + apPaterno + " " + apMaterno;
+
+                String datos = String.format("""
+                    Bienvenido/a docente.
+                    Código: %s
+                    Nombre: %s
+                    Materia: %s
+                    Aula: %s
+                    Hora Entrada: %s
+                    """,
+                        codDocente, nombreCompleto, rs.getString("materia"), rs.getString("aula"), rs.getString("hora_entrada"));
+
+                JOptionPane.showMessageDialog(ventana, datos);
+
+                // Registrar asistencia
+                String insert = "INSERT INTO asistencia (uid, nombre, fecha) VALUES (?, ?, NOW())";
+                PreparedStatement insertarAsistencia = conexion.prepareStatement(insert);
+                insertarAsistencia.setString(1, codDocente);
+                insertarAsistencia.setString(2, nombreCompleto);
+                insertarAsistencia.executeUpdate();
+                insertarAsistencia.close();
+            } else {
+                JOptionPane.showMessageDialog(ventana, "No se encontró ningún docente con este UID.");
+            }
+            stmt.close();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(ventana, "Error al consultar o registrar asistencia: " + e.getMessage());
+        }
+    }
+
+    private static void eliminarRegistro() {
+        String codDocente = JOptionPane.showInputDialog("Ingrese Código de Docente a eliminar:");
+        try (PreparedStatement stmt = conexion.prepareStatement("DELETE FROM docentes WHERE cod_docente = ?")) {
+            stmt.setString(1, codDocente);
+            stmt.executeUpdate();
+            JOptionPane.showMessageDialog(ventana, "Registro eliminado correctamente.");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
         }
     }
 
     private static void eliminarTabla() {
-        int confirmacion = JOptionPane.showConfirmDialog(ventana,
-                "¿Estás seguro de eliminar la tabla 'docentes'?", "Confirmar",
-                JOptionPane.YES_NO_OPTION);
-        if (confirmacion == JOptionPane.YES_OPTION) {
-            try (Statement stmt = conexion.createStatement()) {
-                stmt.executeUpdate("DROP TABLE IF EXISTS docentes");
-                JOptionPane.showMessageDialog(ventana, "Tabla eliminada correctamente.");
-            } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
-            }
+        try (Statement stmt = conexion.createStatement()) {
+            stmt.executeUpdate("DROP TABLE IF EXISTS docentes");
+            JOptionPane.showMessageDialog(ventana, "Tabla eliminada correctamente.");
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
         }
     }
 
     private static void mostrarDatos() {
         JDialog dialogo = new JDialog(ventana, "Datos Insertados", true);
-        dialogo.setSize(700, 300);
+        dialogo.setSize(600, 300);
         modelo = new DefaultTableModel();
 
         String[] columnas = {"Código", "Nombre", "Ap. Paterno", "Ap. Materno", "Entrada", "Salida", "Alumnado", "Materia", "Aula", "Turno"};
@@ -162,7 +266,6 @@ public class ControlDocentes {
 
         tabla = new JTable(modelo);
         dialogo.add(new JScrollPane(tabla));
-        dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
 }
