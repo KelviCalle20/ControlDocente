@@ -9,7 +9,7 @@ package com.mycompany.controldocentes;
 import com.fazecast.jSerialComm.SerialPort;
 import java.awt.*;
 import java.sql.*;
-import java.util.Scanner;
+import java.util.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
@@ -54,7 +54,7 @@ public class ControlDocentes {
 
         JComboBox<String> opciones = new JComboBox<>(new String[]{
             "Seleccionar una opción...",
-            "Insertar Datos",
+            "Registrarse",
             "Eliminar Registro",
             "Mostrar Registros",
             "Eliminar Tabla",
@@ -66,7 +66,7 @@ public class ControlDocentes {
         opciones.addActionListener(e -> {
             String opcion = (String) opciones.getSelectedItem();
             switch (opcion) {
-                case "Insertar Datos":
+                case "Registrarse":
                     insertarDatos();
                     break;
                 case "Eliminar Registro":
@@ -96,10 +96,10 @@ public class ControlDocentes {
     }
 
     private static void insertarDatos() {
-        JDialog dialogo = new JDialog(ventana, "Insertar Datos", true);
+        JDialog dialogo = new JDialog(ventana, "Registrarse", true);
         dialogo.setLayout(new GridLayout(11, 2, 5, 5));
 
-        String[] etiquetas = {"Código Docente (escaneado):", "Nombre:", "Apellido Paterno:", "Apellido Materno:",
+        String[] etiquetas = {"Código Docente (escanear TJ):", "Nombre:", "Apellido Paterno:", "Apellido Materno:",
             "Hora Entrada:", "Hora Salida:", "Cantidad Alumnado:", "Materia:", "Aula:", "Turno:"};
         JTextField[] campos = new JTextField[10];
 
@@ -119,7 +119,7 @@ public class ControlDocentes {
                 while (dialogo.isVisible()) {
                     if (scanner.hasNextLine()) {
                         String codigo = scanner.nextLine().trim();
-                        System.out.println("RFID leído: " + codigo);
+                        System.out.println("tarjeta leída: " + codigo);
                         SwingUtilities.invokeLater(() -> campos[0].setText(codigo));
                         break;
                     }
@@ -129,7 +129,7 @@ public class ControlDocentes {
             }
         }).start();
 
-        JButton btnInsertar = new JButton("Insertar");
+        JButton btnInsertar = new JButton("registrar");
         btnInsertar.addActionListener(e -> {
             try (PreparedStatement stmt = conexion.prepareStatement(
                     "INSERT INTO docentes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
@@ -137,7 +137,7 @@ public class ControlDocentes {
                     stmt.setString(i + 1, campos[i].getText());
                 }
                 stmt.executeUpdate();
-                JOptionPane.showMessageDialog(dialogo, "Datos insertados correctamente.");
+                JOptionPane.showMessageDialog(dialogo, "registro exitoso.");
                 dialogo.dispose();
             } catch (SQLException ex) {
                 JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
@@ -156,7 +156,7 @@ public class ControlDocentes {
         lectorDialog.setSize(300, 150);
         lectorDialog.setLayout(new BorderLayout());
 
-        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta RFID...", SwingConstants.CENTER);
+        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
         lectorDialog.add(mensaje, BorderLayout.CENTER);
 
         new Thread(() -> {
@@ -245,7 +245,7 @@ public class ControlDocentes {
     }
 
     private static void mostrarDatos() {
-        JDialog dialogo = new JDialog(ventana, "Datos Insertados", true);
+        JDialog dialogo = new JDialog(ventana, "Datos registrados", true);
         dialogo.setSize(600, 300);
         modelo = new DefaultTableModel();
 
@@ -277,6 +277,8 @@ public class ControlDocentes {
         dialogo.setSize(400, 200);
 
         JTextField campoCodigo = new JTextField();
+        campoCodigo.setEditable(false);
+
         JTextField campoAnio = new JTextField();
 
         String[] meses = {
@@ -297,9 +299,62 @@ public class ControlDocentes {
         dialogo.add(new JLabel());
         dialogo.add(btnBuscar);
 
+        Runnable escanearUID = () -> {
+            new Thread(() -> {
+                SerialPort puerto = SerialPort.getCommPorts()[0];
+                puerto.setComPortParameters(9600, 8, 1, 0);
+                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+                if (puerto.openPort()) {
+                    Scanner scanner = new Scanner(puerto.getInputStream());
+                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
+                        if (scanner.hasNextLine()) {
+                            String codigo = scanner.nextLine().trim();
+                            System.out.println("UID escaneado: " + codigo);
+                            SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
+                            break;
+                        }
+                    }
+                    scanner.close();
+                    puerto.closePort();
+                }
+            }).start();
+        };
+
+        // Iniciar escaneo desde el principio
+        escanearUID.run();
+
+        // Detectar si se borra manualmente el campo para volver a escanear
+        campoCodigo.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            boolean escaneando = false;
+
+            private void reactivarSiVacio() {
+                if (campoCodigo.getText().trim().isEmpty() && !escaneando) {
+                    escaneando = true;
+                    escanearUID.run();
+                    // Espera breve para evitar múltiples hilos
+                    new javax.swing.Timer(1000, evt -> escaneando = false).start();
+                }
+            }
+
+            @Override
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                reactivarSiVacio();
+            }
+
+            @Override
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                reactivarSiVacio();
+            }
+
+            @Override
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+                // No se usa en campos de texto planos
+            }
+        });
+
         btnBuscar.addActionListener(e -> {
             String codigo = campoCodigo.getText().trim();
-            int mes = comboMes.getSelectedIndex(); // 0 = sin selección
+            int mes = comboMes.getSelectedIndex();
             String anio = campoAnio.getText().trim();
 
             if (mes > 0 && anio.isEmpty()) {
@@ -364,10 +419,23 @@ public class ControlDocentes {
                 }
 
                 JDialog resultado = new JDialog(dialogo, "Resultados", true);
-                resultado.setSize(700, 300);
-                resultado.add(new JScrollPane(new JTable(modeloReporte)));
+                resultado.setLayout(new BorderLayout());
+                resultado.setSize(700, 350);
+
+                JTable tabla = new JTable(modeloReporte);
+                resultado.add(new JScrollPane(tabla), BorderLayout.CENTER);
+
+                JButton btnLimpiar = new JButton("Limpiar Búsqueda");
+                btnLimpiar.addActionListener(ev -> {
+                    campoCodigo.setText("");
+                    resultado.dispose();
+                    escanearUID.run(); // reactivar escaneo
+                });
+                resultado.add(btnLimpiar, BorderLayout.SOUTH);
+
                 resultado.setLocationRelativeTo(dialogo);
                 resultado.setVisible(true);
+
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
             }
