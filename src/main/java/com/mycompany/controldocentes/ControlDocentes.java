@@ -19,6 +19,7 @@ public class ControlDocentes {
     private static Connection conexion;
     private static JFrame ventana;
     private static JTable tablaAsistencia;
+    private static JTable tabla;
     private static DefaultTableModel modeloAsistencia;
 
     public static void main(String[] args) {
@@ -39,6 +40,7 @@ public class ControlDocentes {
         ventana = new JFrame("Control de Docentes");
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         ventana.setSize(800, 500);
+        ventana.setLocationRelativeTo(null);
         ventana.setLayout(null);
 
         // Fondo
@@ -94,7 +96,7 @@ public class ControlDocentes {
     }
 
     private static void mostrarOpcionesEditar() {
-        String[] opciones = {"Eliminar Tabla", "Eliminar Registro", "Mostrar Registros"};
+        String[] opciones = {"Eliminar Tabla", "Eliminar Registro", "Mostrar Registros", "Actualizar registro"};
         String seleccion = (String) JOptionPane.showInputDialog(
                 ventana,
                 "Seleccione una opción:",
@@ -111,6 +113,9 @@ public class ControlDocentes {
                     break;
                 case "Eliminar Registro":
                     eliminarRegistro();
+                    break;
+                case "Actualizar registro":
+                    actualizarRegistro();  
                     break;
                 case "Mostrar Registros":
                     mostrarDatos();
@@ -374,6 +379,144 @@ public class ControlDocentes {
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
             }
+        }
+    }
+    
+    private static void actualizarRegistro() {
+        JDialog dialogo = new JDialog(ventana, "Actualizar Registro de Docente", true);
+        dialogo.setLayout(new GridLayout(11, 2, 5, 5));
+        dialogo.setSize(400, 400);
+
+        JTextField campoCodigo = new JTextField();
+        campoCodigo.setEditable(false);
+
+        JTextField campoNombre = new JTextField();
+        JTextField campoApellidoPaterno = new JTextField();
+        JTextField campoApellidoMaterno = new JTextField();
+        JTextField campoHoraEntrada = new JTextField();
+        JTextField campoHoraSalida = new JTextField();
+        JTextField campoCantidadAlumnado = new JTextField();
+        JTextField campoMateria = new JTextField();
+        JTextField campoAula = new JTextField();
+        JTextField campoTurno = new JTextField();
+
+        dialogo.add(new JLabel("Código RFID del docente (escaneado):"));
+        dialogo.add(campoCodigo);
+        dialogo.add(new JLabel("Nombre:"));
+        dialogo.add(campoNombre);
+        dialogo.add(new JLabel("Apellido Paterno:"));
+        dialogo.add(campoApellidoPaterno);
+        dialogo.add(new JLabel("Apellido Materno:"));
+        dialogo.add(campoApellidoMaterno);
+        dialogo.add(new JLabel("Hora Entrada:"));
+        dialogo.add(campoHoraEntrada);
+        dialogo.add(new JLabel("Hora Salida:"));
+        dialogo.add(campoHoraSalida);
+        dialogo.add(new JLabel("Cantidad Alumnado:"));
+        dialogo.add(campoCantidadAlumnado);
+        dialogo.add(new JLabel("Materia:"));
+        dialogo.add(campoMateria);
+        dialogo.add(new JLabel("Aula:"));
+        dialogo.add(campoAula);
+        dialogo.add(new JLabel("Turno:"));
+        dialogo.add(campoTurno);
+
+        JButton btnActualizar = new JButton("Actualizar");
+        dialogo.add(new JLabel());
+        dialogo.add(btnActualizar);
+
+        // Runnable para escanear el UID
+        Runnable escanearUID = () -> {
+            new Thread(() -> {
+                SerialPort puerto = SerialPort.getCommPorts()[0];
+                puerto.setComPortParameters(9600, 8, 1, 0);
+                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+
+                if (puerto.openPort()) {
+                    Scanner scanner = new Scanner(puerto.getInputStream());
+                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
+                        if (scanner.hasNextLine()) {
+                            String codigo = scanner.nextLine().trim();
+                            SwingUtilities.invokeLater(() -> {
+                                campoCodigo.setText(codigo);
+                                cargarDatosDocente(codigo, campoNombre, campoApellidoPaterno, campoApellidoMaterno,
+                                        campoHoraEntrada, campoHoraSalida, campoCantidadAlumnado,
+                                        campoMateria, campoAula, campoTurno);
+                            });
+                            break;
+                        }
+                    }
+                    scanner.close();
+                    puerto.closePort();
+                }
+            }).start();
+        };
+
+        // Iniciar escaneo desde el principio
+        escanearUID.run();
+
+        // Botón para actualizar el registro
+        btnActualizar.addActionListener(e -> {
+            String codigo = campoCodigo.getText().trim();
+
+            if (codigo.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Por favor, escanee primero la tarjeta RFID.");
+                return;
+            }
+
+            try {
+                // Actualizar los datos del docente en la base de datos
+                PreparedStatement stmt = conexion.prepareStatement(
+                        "UPDATE docentes SET nombre=?, apellido_paterno=?, apellido_materno=?, hora_entrada=?, hora_salida=?, cantidad_alumnado=?, materia=?, aula=?, turno=? WHERE cod_docente=?"
+                );
+                stmt.setString(1, campoNombre.getText());
+                stmt.setString(2, campoApellidoPaterno.getText());
+                stmt.setString(3, campoApellidoMaterno.getText());
+                stmt.setString(4, campoHoraEntrada.getText());
+                stmt.setString(5, campoHoraSalida.getText());
+                stmt.setString(6, campoCantidadAlumnado.getText());
+                stmt.setString(7, campoMateria.getText());
+                stmt.setString(8, campoAula.getText());
+                stmt.setString(9, campoTurno.getText());
+                stmt.setString(10, codigo);
+                stmt.executeUpdate();
+
+                JOptionPane.showMessageDialog(dialogo, "Datos actualizados correctamente.");
+                dialogo.dispose();  // Cierra el diálogo después de actualizar
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialogo, "Error al actualizar el registro: " + ex.getMessage());
+            }
+        });
+
+        dialogo.setLocationRelativeTo(ventana);
+        dialogo.setVisible(true);
+    }
+
+// Método para cargar los datos del docente en el formulario
+    private static void cargarDatosDocente(String codigo, JTextField campoNombre, JTextField campoApellidoPaterno,
+            JTextField campoApellidoMaterno, JTextField campoHoraEntrada,
+            JTextField campoHoraSalida, JTextField campoCantidadAlumnado,
+            JTextField campoMateria, JTextField campoAula, JTextField campoTurno) {
+        try {
+            PreparedStatement stmt = conexion.prepareStatement("SELECT * FROM docentes WHERE cod_docente = ?");
+            stmt.setString(1, codigo);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                campoNombre.setText(rs.getString("nombre"));
+                campoApellidoPaterno.setText(rs.getString("apellido_paterno"));
+                campoApellidoMaterno.setText(rs.getString("apellido_materno"));
+                campoHoraEntrada.setText(rs.getString("hora_entrada"));
+                campoHoraSalida.setText(rs.getString("hora_salida"));
+                campoCantidadAlumnado.setText(rs.getString("cantidad_alumnado"));
+                campoMateria.setText(rs.getString("materia"));
+                campoAula.setText(rs.getString("aula"));
+                campoTurno.setText(rs.getString("turno"));
+            } else {
+                JOptionPane.showMessageDialog(ventana, "No se encontró un docente con ese código.");
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(ventana, "Error al cargar los datos: " + e.getMessage());
         }
     }
 
