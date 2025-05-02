@@ -5,8 +5,7 @@ package com.mycompany.controldocentes;
  *integrantes:  Kelvin Calle
  *              Denilson Apaza
  */
-// Asegúrate de importar todas las librerías necesarias
-// Asegúrate de importar todas las librerías necesarias 
+
 import com.fazecast.jSerialComm.SerialPort;
 import java.awt.*;
 import java.sql.*;
@@ -59,7 +58,8 @@ public class ControlDocentes {
             "Eliminar Registro",
             "Mostrar Registros",
             "Eliminar Tabla",
-            "Iniciar Control"
+            "Iniciar Control",
+            "Ver Reporte"
         });
         opciones.setBounds(180, 80, 250, 30);
 
@@ -80,6 +80,9 @@ public class ControlDocentes {
                     break;
                 case "Iniciar Control":
                     iniciarControlRFID();
+                    break;
+                case "Ver Reporte":
+                    mostrarReporte();
                     break;
             }
         });
@@ -206,7 +209,6 @@ public class ControlDocentes {
 
                 JOptionPane.showMessageDialog(ventana, datos);
 
-                // Registrar asistencia
                 String insert = "INSERT INTO asistencia (uid, nombre, fecha) VALUES (?, ?, NOW())";
                 PreparedStatement insertarAsistencia = conexion.prepareStatement(insert);
                 insertarAsistencia.setString(1, codDocente);
@@ -266,6 +268,112 @@ public class ControlDocentes {
 
         tabla = new JTable(modelo);
         dialogo.add(new JScrollPane(tabla));
+        dialogo.setVisible(true);
+    }
+
+    private static void mostrarReporte() {
+        JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
+        dialogo.setLayout(new GridLayout(4, 2, 5, 5));
+        dialogo.setSize(400, 200);
+
+        JTextField campoCodigo = new JTextField();
+        JTextField campoAnio = new JTextField();
+
+        String[] meses = {
+            "Seleccionar mes...",
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        };
+        JComboBox<String> comboMes = new JComboBox<>(meses);
+
+        dialogo.add(new JLabel("Código RFID del docente (opcional):"));
+        dialogo.add(campoCodigo);
+        dialogo.add(new JLabel("Mes (opcional):"));
+        dialogo.add(comboMes);
+        dialogo.add(new JLabel("Año (ej. 2025, obligatorio si hay mes):"));
+        dialogo.add(campoAnio);
+
+        JButton btnBuscar = new JButton("Buscar");
+        dialogo.add(new JLabel());
+        dialogo.add(btnBuscar);
+
+        btnBuscar.addActionListener(e -> {
+            String codigo = campoCodigo.getText().trim();
+            int mes = comboMes.getSelectedIndex(); // 0 = sin selección
+            String anio = campoAnio.getText().trim();
+
+            if (mes > 0 && anio.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Debe ingresar el año si selecciona un mes.");
+                return;
+            }
+
+            if (mes == 0 && anio.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Debe ingresar al menos el año o el año y el mes.");
+                return;
+            }
+
+            try {
+                StringBuilder sql = new StringBuilder("SELECT uid, nombre, fecha FROM asistencia WHERE 1=1");
+                if (!codigo.isEmpty()) {
+                    sql.append(" AND uid = ?");
+                }
+                if (!anio.isEmpty()) {
+                    sql.append(" AND YEAR(fecha) = ?");
+                }
+                if (mes > 0) {
+                    sql.append(" AND MONTH(fecha) = ?");
+                }
+                sql.append(" ORDER BY fecha ASC");
+
+                PreparedStatement stmt = conexion.prepareStatement(sql.toString());
+
+                int index = 1;
+                if (!codigo.isEmpty()) {
+                    stmt.setString(index++, codigo);
+                }
+                if (!anio.isEmpty()) {
+                    stmt.setInt(index++, Integer.parseInt(anio));
+                }
+                if (mes > 0) {
+                    stmt.setInt(index++, mes);
+                }
+
+                ResultSet rs = stmt.executeQuery();
+
+                DefaultTableModel modeloReporte = new DefaultTableModel();
+                modeloReporte.addColumn("Código");
+                modeloReporte.addColumn("Nombre");
+                modeloReporte.addColumn("Fecha");
+                modeloReporte.addColumn("Hora");
+
+                boolean hayResultados = false;
+                while (rs.next()) {
+                    hayResultados = true;
+                    String[] partes = rs.getString("fecha").split(" ");
+                    modeloReporte.addRow(new Object[]{
+                        rs.getString("uid"),
+                        rs.getString("nombre"),
+                        partes[0],
+                        partes.length > 1 ? partes[1] : ""
+                    });
+                }
+
+                if (!hayResultados) {
+                    JOptionPane.showMessageDialog(dialogo, "No se encontraron registros.");
+                    return;
+                }
+
+                JDialog resultado = new JDialog(dialogo, "Resultados", true);
+                resultado.setSize(700, 300);
+                resultado.add(new JScrollPane(new JTable(modeloReporte)));
+                resultado.setLocationRelativeTo(dialogo);
+                resultado.setVisible(true);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
+            }
+        });
+
+        dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
 }
