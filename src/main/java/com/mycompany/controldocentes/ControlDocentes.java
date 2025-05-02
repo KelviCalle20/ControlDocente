@@ -5,11 +5,12 @@ package com.mycompany.controldocentes;
  *integrantes:  Kelvin Calle
  *              Denilson Apaza
  */
-
 import com.fazecast.jSerialComm.SerialPort;
 import java.awt.*;
 import java.sql.*;
-import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Scanner;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 
@@ -17,8 +18,8 @@ public class ControlDocentes {
 
     private static Connection conexion;
     private static JFrame ventana;
-    private static JTable tabla;
-    private static DefaultTableModel modelo;
+    private static JTable tablaAsistencia;
+    private static DefaultTableModel modeloAsistencia;
 
     public static void main(String[] args) {
         conectarBaseDatos();
@@ -37,37 +38,76 @@ public class ControlDocentes {
     private static void crearVentana() {
         ventana = new JFrame("Control de Docentes");
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        ventana.setSize(600, 400);
+        ventana.setSize(800, 500);
         ventana.setLayout(null);
 
+        // Fondo
         ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");
         Image imagenOriginal = originalIcon.getImage();
-        Image imagenEscalada = imagenOriginal.getScaledInstance(600, 400, Image.SCALE_SMOOTH);
+        Image imagenEscalada = imagenOriginal.getScaledInstance(800, 500, Image.SCALE_SMOOTH);
         ImageIcon iconoEscalado = new ImageIcon(imagenEscalada);
         JLabel fondo = new JLabel(iconoEscalado);
-        fondo.setBounds(0, 0, 600, 400);
+        fondo.setBounds(0, 0, 800, 500);
 
         JLabel titulo = new JLabel("CONTROL DE DOCENTES");
         titulo.setFont(new Font("Arial", Font.BOLD, 24));
         titulo.setForeground(Color.WHITE);
-        titulo.setBounds(180, 20, 400, 30);
+        titulo.setBounds(250, 20, 400, 30);
 
-        JComboBox<String> opciones = new JComboBox<>(new String[]{
-            "Seleccionar una opción...",
-            "Registrarse",
-            "Eliminar Registro",
-            "Mostrar Registros",
-            "Eliminar Tabla",
-            "Iniciar Control",
-            "Ver Reporte"
-        });
-        opciones.setBounds(180, 80, 250, 30);
+        JButton btnRegistrar = new JButton("Registrar");
+        btnRegistrar.setBounds(50, 80, 200, 40);
+        btnRegistrar.addActionListener(e -> insertarDatos());
 
-        opciones.addActionListener(e -> {
-            String opcion = (String) opciones.getSelectedItem();
-            switch (opcion) {
-                case "Registrarse":
-                    insertarDatos();
+        JButton btnVerReporte = new JButton("Ver Reporte");
+        btnVerReporte.setBounds(50, 130, 200, 40);
+        btnVerReporte.addActionListener(e -> mostrarReporte());
+
+        JButton btnEditar = new JButton("Editar");
+        btnEditar.setBounds(50, 180, 200, 40);
+        btnEditar.addActionListener(e -> mostrarOpcionesEditar());
+
+        JButton btnIniciarControl = new JButton("Iniciar Control");
+        btnIniciarControl.setBounds(50, 230, 200, 40);
+        btnIniciarControl.addActionListener(e -> iniciarControlRFID());
+
+        JButton btnSalir = new JButton("Salir");
+        btnSalir.setBounds(50, 280, 200, 40);
+        btnSalir.addActionListener(e -> System.exit(0));
+
+        // Tabla de asistencia en tiempo real
+        modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);
+        tablaAsistencia = new JTable(modeloAsistencia);
+        JScrollPane scroll = new JScrollPane(tablaAsistencia);
+        scroll.setBounds(300, 80, 460, 300);
+
+        fondo.setLayout(null);
+        fondo.add(titulo);
+        fondo.add(btnRegistrar);
+        fondo.add(btnVerReporte);
+        fondo.add(btnEditar);
+        fondo.add(btnIniciarControl);
+        fondo.add(btnSalir);
+        fondo.add(scroll);
+
+        ventana.setContentPane(fondo);
+        ventana.setVisible(true);
+    }
+
+    private static void mostrarOpcionesEditar() {
+        String[] opciones = {"Eliminar Tabla", "Eliminar Registro", "Mostrar Registros"};
+        String seleccion = (String) JOptionPane.showInputDialog(
+                ventana,
+                "Seleccione una opción:",
+                "Editar",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                opciones,
+                opciones[0]);
+
+        if (seleccion != null) {
+            switch (seleccion) {
+                case "Eliminar Tabla":
+                    eliminarTabla();
                     break;
                 case "Eliminar Registro":
                     eliminarRegistro();
@@ -75,24 +115,8 @@ public class ControlDocentes {
                 case "Mostrar Registros":
                     mostrarDatos();
                     break;
-                case "Eliminar Tabla":
-                    eliminarTabla();
-                    break;
-                case "Iniciar Control":
-                    iniciarControlRFID();
-                    break;
-                case "Ver Reporte":
-                    mostrarReporte();
-                    break;
             }
-        });
-
-        ventana.setContentPane(fondo);
-        fondo.setLayout(null);
-        fondo.add(titulo);
-        fondo.add(opciones);
-
-        ventana.setVisible(true);
+        }
     }
 
     private static void insertarDatos() {
@@ -148,126 +172,6 @@ public class ControlDocentes {
         dialogo.add(btnInsertar);
         dialogo.pack();
         dialogo.setLocationRelativeTo(ventana);
-        dialogo.setVisible(true);
-    }
-
-    private static void iniciarControlRFID() {
-        JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
-        lectorDialog.setSize(300, 150);
-        lectorDialog.setLayout(new BorderLayout());
-
-        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
-        lectorDialog.add(mensaje, BorderLayout.CENTER);
-
-        new Thread(() -> {
-            SerialPort puerto = SerialPort.getCommPorts()[0];
-            puerto.setComPortParameters(9600, 8, 1, 0);
-            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-            if (puerto.openPort()) {
-                Scanner scanner = new Scanner(puerto.getInputStream());
-                while (lectorDialog.isVisible()) {
-                    if (scanner.hasNextLine()) {
-                        String uid = scanner.nextLine().trim();
-                        System.out.println("UID detectado: " + uid);
-                        mostrarDatosDocente(uid);
-                        lectorDialog.dispose();
-                        break;
-                    }
-                }
-                scanner.close();
-                puerto.closePort();
-            }
-        }).start();
-
-        lectorDialog.setLocationRelativeTo(ventana);
-        lectorDialog.setVisible(true);
-    }
-
-    private static void mostrarDatosDocente(String uid) {
-        try {
-            String query = "SELECT cod_docente, nombre, apellido_paterno, apellido_materno, materia, aula, hora_entrada FROM docentes WHERE cod_docente = ?";
-            PreparedStatement stmt = conexion.prepareStatement(query);
-            stmt.setString(1, uid);
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                String codDocente = rs.getString("cod_docente");
-                String nombre = rs.getString("nombre");
-                String apPaterno = rs.getString("apellido_paterno");
-                String apMaterno = rs.getString("apellido_materno");
-                String nombreCompleto = nombre + " " + apPaterno + " " + apMaterno;
-
-                String datos = String.format("""
-                    Bienvenido/a docente.
-                    Código: %s
-                    Nombre: %s
-                    Materia: %s
-                    Aula: %s
-                    Hora Entrada: %s
-                    """,
-                        codDocente, nombreCompleto, rs.getString("materia"), rs.getString("aula"), rs.getString("hora_entrada"));
-
-                JOptionPane.showMessageDialog(ventana, datos);
-
-                String insert = "INSERT INTO asistencia (uid, nombre, fecha) VALUES (?, ?, NOW())";
-                PreparedStatement insertarAsistencia = conexion.prepareStatement(insert);
-                insertarAsistencia.setString(1, codDocente);
-                insertarAsistencia.setString(2, nombreCompleto);
-                insertarAsistencia.executeUpdate();
-                insertarAsistencia.close();
-            } else {
-                JOptionPane.showMessageDialog(ventana, "No se encontró ningún docente con este UID.");
-            }
-            stmt.close();
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(ventana, "Error al consultar o registrar asistencia: " + e.getMessage());
-        }
-    }
-
-    private static void eliminarRegistro() {
-        String codDocente = JOptionPane.showInputDialog("Ingrese Código de Docente a eliminar:");
-        try (PreparedStatement stmt = conexion.prepareStatement("DELETE FROM docentes WHERE cod_docente = ?")) {
-            stmt.setString(1, codDocente);
-            stmt.executeUpdate();
-            JOptionPane.showMessageDialog(ventana, "Registro eliminado correctamente.");
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
-        }
-    }
-
-    private static void eliminarTabla() {
-        try (Statement stmt = conexion.createStatement()) {
-            stmt.executeUpdate("DROP TABLE IF EXISTS docentes");
-            JOptionPane.showMessageDialog(ventana, "Tabla eliminada correctamente.");
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
-        }
-    }
-
-    private static void mostrarDatos() {
-        JDialog dialogo = new JDialog(ventana, "Datos registrados", true);
-        dialogo.setSize(600, 300);
-        modelo = new DefaultTableModel();
-
-        String[] columnas = {"Código", "Nombre", "Ap. Paterno", "Ap. Materno", "Entrada", "Salida", "Alumnado", "Materia", "Aula", "Turno"};
-        for (String col : columnas) {
-            modelo.addColumn(col);
-        }
-
-        try (Statement stmt = conexion.createStatement(); ResultSet rs = stmt.executeQuery("SELECT * FROM docentes")) {
-            while (rs.next()) {
-                Object[] fila = new Object[10];
-                for (int i = 0; i < 10; i++) {
-                    fila[i] = rs.getString(i + 1);
-                }
-                modelo.addRow(fila);
-            }
-        } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
-        }
-
-        tabla = new JTable(modelo);
-        dialogo.add(new JScrollPane(tabla));
         dialogo.setVisible(true);
     }
 
@@ -444,4 +348,148 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
+
+    private static void eliminarTabla() {
+        try {
+            Statement stmt = conexion.createStatement();
+            stmt.executeUpdate("DROP TABLE IF EXISTS asistencia");
+            JOptionPane.showMessageDialog(ventana, "Tabla eliminada correctamente.");
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(ventana, "Error al eliminar la tabla: " + e.getMessage());
+        }
+    }
+
+    private static void eliminarRegistro() {
+        String nombre = JOptionPane.showInputDialog("Nombre del docente a eliminar:");
+        if (nombre != null) {
+            try {
+                PreparedStatement stmt = conexion.prepareStatement("DELETE FROM docentes WHERE nombre = ?");
+                stmt.setString(1, nombre);
+                int filas = stmt.executeUpdate();
+                if (filas > 0) {
+                    JOptionPane.showMessageDialog(ventana, "Registro eliminado.");
+                } else {
+                    JOptionPane.showMessageDialog(ventana, "No se encontró el registro.");
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
+            }
+        }
+    }
+
+    private static void mostrarDatos() {
+        JDialog dialogo = new JDialog(ventana, "Datos registrados", true);
+        dialogo.setSize(900, 300);
+        DefaultTableModel modelo = new DefaultTableModel();
+
+        String[] columnas = {"Código", "Nombre", "Ap. Paterno", "Ap. Materno", "Entrada", "Salida", "Alumnado", "Materia", "Aula", "Turno"};
+        for (String col : columnas) {
+            modelo.addColumn(col);
+        }
+
+        try (Statement stmt = conexion.createStatement(); ResultSet rs = stmt.executeQuery("SELECT * FROM docentes")) {
+            while (rs.next()) {
+                Object[] fila = new Object[10];
+                for (int i = 0; i < 10; i++) {
+                    fila[i] = rs.getString(i + 1);
+                }
+                modelo.addRow(fila);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
+        }
+
+        JTable tabla = new JTable(modelo);
+        dialogo.add(new JScrollPane(tabla));
+        dialogo.setVisible(true);
+    }
+
+    private static void iniciarControlRFID() {
+        JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
+        lectorDialog.setSize(300, 150);
+        lectorDialog.setLayout(new BorderLayout());
+
+        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
+        lectorDialog.add(mensaje, BorderLayout.CENTER);
+
+        new Thread(() -> {
+            SerialPort puerto = SerialPort.getCommPorts()[0];
+            puerto.setComPortParameters(9600, 8, 1, 0);
+            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+            if (puerto.openPort()) {
+                Scanner scanner = new Scanner(puerto.getInputStream());
+                while (lectorDialog.isVisible()) {
+                    if (scanner.hasNextLine()) {
+                        String uid = scanner.nextLine().trim();
+                        System.out.println("UID detectado: " + uid);
+                        registrarAsistencia(uid);
+                        mostrarDatosDocente(uid);
+                        lectorDialog.dispose();
+                        break;
+                    }
+                }
+                scanner.close();
+                puerto.closePort();
+            }
+        }).start();
+
+        lectorDialog.setLocationRelativeTo(ventana);
+        lectorDialog.setVisible(true);
+    }
+
+    private static void registrarAsistencia(String uid) {
+        try {
+            PreparedStatement stmt = conexion.prepareStatement("SELECT nombre FROM docentes WHERE cod_docente = ?");
+            stmt.setString(1, uid);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                String nombre = rs.getString("nombre");
+                String fecha = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+                String hora = new SimpleDateFormat("HH:mm:ss").format(new Date());
+
+                // Mostrar saludo
+                JOptionPane.showMessageDialog(ventana, "Hola " + nombre + ", ¡Bienvenido!");
+
+                // Agregar a tabla en tiempo real
+                modeloAsistencia.addRow(new String[]{fecha, hora, nombre});
+
+                // Aquí puedes insertar en una tabla de asistencia si la tienes en la base
+            } else {
+                JOptionPane.showMessageDialog(ventana, "UID no registrado.");
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
+        }
+    }
+    private static void mostrarDatosDocente(String uid) {
+        try {
+            String query = "SELECT cod_docente, nombre, apellido_paterno, apellido_materno, materia, aula, hora_entrada FROM docentes WHERE cod_docente = ?";
+            PreparedStatement stmt = conexion.prepareStatement(query);
+            stmt.setString(1, uid);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                String codDocente = rs.getString("cod_docente");
+                String nombre = rs.getString("nombre");
+                String apPaterno = rs.getString("apellido_paterno");
+                String apMaterno = rs.getString("apellido_materno");
+                String nombreCompleto = nombre + " " + apPaterno + " " + apMaterno;
+
+
+                String insert = "INSERT INTO asistencia (uid, nombre, fecha) VALUES (?, ?, NOW())";
+                PreparedStatement insertarAsistencia = conexion.prepareStatement(insert);
+                insertarAsistencia.setString(1, codDocente);
+                insertarAsistencia.setString(2, nombreCompleto);
+                insertarAsistencia.executeUpdate();
+                insertarAsistencia.close();
+            } else {
+                JOptionPane.showMessageDialog(ventana, "No se encontró ningún docente con este UID.");
+            }
+            stmt.close();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(ventana, "Error al consultar o registrar asistencia: " + e.getMessage());
+        }
+    }
+    
 }
