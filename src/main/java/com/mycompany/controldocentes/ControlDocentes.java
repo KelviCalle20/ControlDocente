@@ -19,14 +19,13 @@ public class ControlDocentes {
     private static Connection conexion;
     private static JFrame ventana;
     private static JTable tablaAsistencia;
-    private static JTable tabla;
     private static DefaultTableModel modeloAsistencia;
 
     public static void main(String[] args) {
         conectarBaseDatos();
         crearVentana();
     }
-
+    //conexion a la base de datos de mysql 
     private static void conectarBaseDatos() {
         try {
             conexion = DriverManager.getConnection("jdbc:mysql://localhost:3306/kelvin", "user", "");
@@ -37,47 +36,55 @@ public class ControlDocentes {
     }
 
     private static void crearVentana() {
-        ventana = new JFrame("Control de Docentes");
+        ventana = new JFrame("Control de Docentes");//titulo de la ventana principal
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        ventana.setSize(800, 500);
-        ventana.setLocationRelativeTo(null);
+        ventana.setSize(800, 500);//dimensiones de la ventana
+        ventana.setLocationRelativeTo(null);// es para que la ventana emerja desde el centro
         ventana.setLayout(null);
 
-        // Fondo
-        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");
+        // Fondo para la ventana principal
+        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");//sirve para fondo de la ventana
         Image imagenOriginal = originalIcon.getImage();
         Image imagenEscalada = imagenOriginal.getScaledInstance(800, 500, Image.SCALE_SMOOTH);
         ImageIcon iconoEscalado = new ImageIcon(imagenEscalada);
         JLabel fondo = new JLabel(iconoEscalado);
         fondo.setBounds(0, 0, 800, 500);
 
-        JLabel titulo = new JLabel("CONTROL DE DOCENTES");
-        titulo.setFont(new Font("Arial", Font.BOLD, 24));
+        JLabel titulo = new JLabel("CONTROL DE DOCENTES");//titulo principal del sistema 
+        titulo.setFont(new Font("Arial", Font.BOLD, 24));//formato 
         titulo.setForeground(Color.WHITE);
         titulo.setBounds(250, 20, 400, 30);
-
+        
+        //botones que cumplirar sus respectivas funciones
+        //aqui registraremos a nuevos docentes 
         JButton btnRegistrar = new JButton("Registrar");
         btnRegistrar.setBounds(50, 80, 200, 40);
         btnRegistrar.addActionListener(e -> insertarDatos());
-
+        
+        //en este boton podremos ver con un reporte al docente registrado en asistencia
+        //requisitos cod_docente, mes y año 
         JButton btnVerReporte = new JButton("Ver Reporte");
         btnVerReporte.setBounds(50, 130, 200, 40);
         btnVerReporte.addActionListener(e -> mostrarReporte());
-
+        
+        //Aqui exitira 4 opciones de despliegue 
+        //eliminar registro, eliminar tabla, actualizar registro y mostrar registro
         JButton btnEditar = new JButton("Editar");
         btnEditar.setBounds(50, 180, 200, 40);
         btnEditar.addActionListener(e -> mostrarOpcionesEditar());
-
+        
+        //Aqui iniciamos con el registro de asistencia, esto nos servira para el reporte
         JButton btnIniciarControl = new JButton("Iniciar Control");
         btnIniciarControl.setBounds(50, 230, 200, 40);
         btnIniciarControl.addActionListener(e -> iniciarControlRFID());
-
+        
+        //con este boton podremos salir del sistema
         JButton btnSalir = new JButton("Salir");
         btnSalir.setBounds(50, 280, 200, 40);
         btnSalir.addActionListener(e -> System.exit(0));
 
-        // Tabla de asistencia en tiempo real
-        modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);
+        // Tabla de asistencia en tiempo real en ventana principal
+        modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);//atributos
         tablaAsistencia = new JTable(modeloAsistencia);
         JScrollPane scroll = new JScrollPane(tablaAsistencia);
         scroll.setBounds(300, 80, 460, 300);
@@ -94,7 +101,8 @@ public class ControlDocentes {
         ventana.setContentPane(fondo);
         ventana.setVisible(true);
     }
-
+    
+    //metodo para desplegar opcioes de editar en pantalla
     private static void mostrarOpcionesEditar() {
         String[] opciones = {"Eliminar Tabla", "Eliminar Registro", "Mostrar Registros", "Actualizar registro"};
         String seleccion = (String) JOptionPane.showInputDialog(
@@ -123,7 +131,7 @@ public class ControlDocentes {
             }
         }
     }
-
+    //metodo para registrar nuevos docentes
     private static void insertarDatos() {
         JDialog dialogo = new JDialog(ventana, "Registrarse", true);
         dialogo.setLayout(new GridLayout(11, 2, 5, 5));
@@ -138,7 +146,7 @@ public class ControlDocentes {
             campos[i].setEditable(i != 0);
             dialogo.add(campos[i]);
         }
-
+        // con este THREAD hacemos el funcionamiento del escaneo de tarjeta rfid
         new Thread(() -> {
             SerialPort puerto = SerialPort.getCommPorts()[0];
             puerto.setComPortParameters(9600, 8, 1, 0);
@@ -179,14 +187,14 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
-
+    // aqui podremos mostrar el reporte con escaneo de tarjeta
     private static void mostrarReporte() {
         JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
         dialogo.setLayout(new GridLayout(4, 2, 5, 5));
         dialogo.setSize(400, 200);
 
         JTextField campoCodigo = new JTextField();
-        campoCodigo.setEditable(false);
+        campoCodigo.setEditable(false);//le doy en no esditar campo del cod_docente
 
         JTextField campoAnio = new JTextField();
 
@@ -235,7 +243,7 @@ public class ControlDocentes {
         // Detectar si se borra manualmente el campo para volver a escanear
         campoCodigo.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             boolean escaneando = false;
-
+            //estos tres metodo son para actualizar y elimianr el codigo de la tarjeta para seeguir escaneando mas
             private void reactivarSiVacio() {
                 if (campoCodigo.getText().trim().isEmpty() && !escaneando) {
                     escaneando = true;
@@ -333,7 +341,8 @@ public class ControlDocentes {
 
                 JTable tabla = new JTable(modeloReporte);
                 resultado.add(new JScrollPane(tabla), BorderLayout.CENTER);
-
+                
+                //con este boton eliminamos contenido del campo de indentificacion
                 JButton btnLimpiar = new JButton("Limpiar Búsqueda");
                 btnLimpiar.addActionListener(ev -> {
                     campoCodigo.setText("");
@@ -353,7 +362,7 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
-
+    // eliminar tabla de la base de datos 
     private static void eliminarTabla() {
         try {
             Statement stmt = conexion.createStatement();
@@ -363,7 +372,7 @@ public class ControlDocentes {
             JOptionPane.showMessageDialog(ventana, "Error al eliminar la tabla: " + e.getMessage());
         }
     }
-
+    //metodo para eliminar el registro una ves que haya concluido su servicio educatico 
     private static void eliminarRegistro() {
         String nombre = JOptionPane.showInputDialog("Nombre del docente a eliminar:");
         if (nombre != null) {
@@ -382,13 +391,14 @@ public class ControlDocentes {
         }
     }
     
+    //metodo para actualizar registro si existe errores de duplicidad de nombre, etc.
     private static void actualizarRegistro() {
         JDialog dialogo = new JDialog(ventana, "Actualizar Registro de Docente", true);
         dialogo.setLayout(new GridLayout(11, 2, 5, 5));
         dialogo.setSize(400, 400);
 
         JTextField campoCodigo = new JTextField();
-        campoCodigo.setEditable(false);
+        campoCodigo.setEditable(false);// no editable el campo cod_docente para auto llenado de datos
 
         JTextField campoNombre = new JTextField();
         JTextField campoApellidoPaterno = new JTextField();
@@ -546,7 +556,7 @@ public class ControlDocentes {
         dialogo.add(new JScrollPane(tabla));
         dialogo.setVisible(true);
     }
-
+    // metodo para mostrar en consola cada escaneo de tarjeta rfid
     private static void iniciarControlRFID() {
         JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
         lectorDialog.setSize(300, 150);
@@ -579,7 +589,7 @@ public class ControlDocentes {
         lectorDialog.setLocationRelativeTo(ventana);
         lectorDialog.setVisible(true);
     }
-
+    
     private static void registrarAsistencia(String uid) {
         try {
             PreparedStatement stmt = conexion.prepareStatement("SELECT nombre FROM docentes WHERE cod_docente = ?");
