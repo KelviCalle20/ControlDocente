@@ -1,11 +1,12 @@
 
 package com.mycompany.controldocentes;
 
-/**
+/*
  *integrantes:  Kelvin Calle
  *              Denilson Apaza
  */
 import com.fazecast.jSerialComm.SerialPort;
+import com.mycompany.controldocentes.conexionBD.ConexionBD;
 import java.awt.*;
 import java.sql.*;
 import java.text.SimpleDateFormat;
@@ -13,6 +14,7 @@ import java.util.Date;
 import java.util.Scanner;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+
 
 public class ControlDocentes {
 
@@ -25,14 +27,10 @@ public class ControlDocentes {
         conectarBaseDatos();
         crearVentana();
     }
+    
     //conexion a la base de datos de mysql 
     private static void conectarBaseDatos() {
-        try {
-            conexion = DriverManager.getConnection("jdbc:mysql://localhost:3306/kelvin", "user", "");
-            System.out.println("Conexión exitosa.");
-        } catch (SQLException e) {
-            System.out.println("Error de conexión: " + e.getMessage());
-        }
+        conexion = ConexionBD.getConnection();
     }
 
     private static void crearVentana() {
@@ -188,6 +186,7 @@ public class ControlDocentes {
         dialogo.setVisible(true);
     }
     // aqui podremos mostrar el reporte con escaneo de tarjeta
+    
     private static void mostrarReporte() {
         JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
         dialogo.setLayout(new GridLayout(4, 2, 5, 5));
@@ -362,6 +361,10 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
+    
+    
+
+    
     // eliminar tabla de la base de datos 
     private static void eliminarTabla() {
         try {
@@ -646,3 +649,4 @@ public class ControlDocentes {
     }
     
 }
+

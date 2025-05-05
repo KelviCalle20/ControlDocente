@@ -1,9 +1,20 @@
 package com.mycompany.controldocentes.conexionBD;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 
-/**
- *
- * @author zatan
- */
 public class ConexionBD {
-    //solo es colocar la comunicacion del metodo de la base de datos pendiente para ultimas mejoras de presentacio
+    private static Connection conexion;
+
+    public static Connection getConnection() {
+        if (conexion == null) {
+            try {
+                conexion = DriverManager.getConnection("jdbc:mysql://localhost:3306/kelvin", "user", "");
+                System.out.println("Conexión exitosa.");
+            } catch (SQLException e) {
+                System.out.println("Error de conexión: " + e.getMessage());
+            }
+        }
+        return conexion;
+    }
 }
