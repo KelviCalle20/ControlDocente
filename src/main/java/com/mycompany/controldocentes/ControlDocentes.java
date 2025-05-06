@@ -14,6 +14,18 @@ import java.util.Date;
 import java.util.Scanner;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import java.awt.Font;
+import java.awt.Color;
+
+import org.apache.poi.ss.usermodel.*;
+
+import com.lowagie.text.Document;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 
 public class ControlDocentes {
@@ -50,7 +62,7 @@ public class ControlDocentes {
 
         JLabel titulo = new JLabel("CONTROL DE DOCENTES");//titulo principal del sistema 
         titulo.setFont(new Font("Arial", Font.BOLD, 24));//formato 
-        titulo.setForeground(Color.WHITE);
+        titulo.setForeground(Color.GREEN);
         titulo.setBounds(250, 20, 400, 30);
         
         //botones que cumplirar sus respectivas funciones
@@ -187,6 +199,7 @@ public class ControlDocentes {
     }
     // aqui podremos mostrar el reporte con escaneo de tarjeta
     
+    /*
     private static void mostrarReporte() {
         JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
         dialogo.setLayout(new GridLayout(4, 2, 5, 5));
@@ -361,9 +374,237 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
+    */
     
-    
+    private static void mostrarReporte() {
+        JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
+        dialogo.setLayout(new GridLayout(4, 2, 5, 5));
+        dialogo.setSize(400, 200);
 
+        JTextField campoCodigo = new JTextField();
+        campoCodigo.setEditable(false);
+
+        JTextField campoAnio = new JTextField();
+
+        String[] meses = {
+            "Seleccionar mes...", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        };
+        JComboBox<String> comboMes = new JComboBox<>(meses);
+
+        dialogo.add(new JLabel("Código RFID del docente (opcional):"));
+        dialogo.add(campoCodigo);
+        dialogo.add(new JLabel("Mes (opcional):"));
+        dialogo.add(comboMes);
+        dialogo.add(new JLabel("Año (ej. 2025, obligatorio si hay mes):"));
+        dialogo.add(campoAnio);
+
+        JButton btnBuscar = new JButton("Buscar");
+        dialogo.add(new JLabel());
+        dialogo.add(btnBuscar);
+
+        Runnable escanearUID = () -> {
+            new Thread(() -> {
+                SerialPort puerto = SerialPort.getCommPorts()[0];
+                puerto.setComPortParameters(9600, 8, 1, 0);
+                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+                if (puerto.openPort()) {
+                    Scanner scanner = new Scanner(puerto.getInputStream());
+                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
+                        if (scanner.hasNextLine()) {
+                            String codigo = scanner.nextLine().trim();
+                            System.out.println("UID escaneado: " + codigo);
+                            SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
+                            break;
+                        }
+                    }
+                    scanner.close();
+                    puerto.closePort();
+                }
+            }).start();
+        };
+
+        escanearUID.run();
+
+        campoCodigo.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            boolean escaneando = false;
+
+            private void reactivarSiVacio() {
+                if (campoCodigo.getText().trim().isEmpty() && !escaneando) {
+                    escaneando = true;
+                    escanearUID.run();
+                    new javax.swing.Timer(1000, evt -> escaneando = false).start();
+                }
+            }
+
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                reactivarSiVacio();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                reactivarSiVacio();
+            }
+
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+            }
+        });
+
+        btnBuscar.addActionListener(e -> {
+            String codigo = campoCodigo.getText().trim();
+            int mes = comboMes.getSelectedIndex();
+            String anio = campoAnio.getText().trim();
+
+            if (mes > 0 && anio.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Debe ingresar el año si selecciona un mes.");
+                return;
+            }
+
+            if (mes == 0 && anio.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Debe ingresar al menos el año o el año y el mes.");
+                return;
+            }
+
+            try {
+                StringBuilder sql = new StringBuilder("SELECT uid, nombre, fecha FROM asistencia WHERE 1=1");
+                if (!codigo.isEmpty()) {
+                    sql.append(" AND uid = ?");
+                }
+                if (!anio.isEmpty()) {
+                    sql.append(" AND YEAR(fecha) = ?");
+                }
+                if (mes > 0) {
+                    sql.append(" AND MONTH(fecha) = ?");
+                }
+                sql.append(" ORDER BY fecha ASC");
+
+                PreparedStatement stmt = conexion.prepareStatement(sql.toString());
+                int index = 1;
+                if (!codigo.isEmpty()) {
+                    stmt.setString(index++, codigo);
+                }
+                if (!anio.isEmpty()) {
+                    stmt.setInt(index++, Integer.parseInt(anio));
+                }
+                if (mes > 0) {
+                    stmt.setInt(index++, mes);
+                }
+
+                ResultSet rs = stmt.executeQuery();
+
+                DefaultTableModel modeloReporte = new DefaultTableModel();
+                modeloReporte.addColumn("Código");
+                modeloReporte.addColumn("Nombre");
+                modeloReporte.addColumn("Fecha");
+                modeloReporte.addColumn("Hora");
+
+                boolean hayResultados = false;
+                while (rs.next()) {
+                    hayResultados = true;
+                    String[] partes = rs.getString("fecha").split(" ");
+                    modeloReporte.addRow(new Object[]{
+                        rs.getString("uid"),
+                        rs.getString("nombre"),
+                        partes[0],
+                        partes.length > 1 ? partes[1] : ""
+                    });
+                }
+
+                if (!hayResultados) {
+                    JOptionPane.showMessageDialog(dialogo, "No se encontraron registros.");
+                    return;
+                }
+
+                JDialog resultado = new JDialog(dialogo, "Resultados", true);
+                resultado.setLayout(new BorderLayout());
+                resultado.setSize(800, 400);
+
+                JTable tabla = new JTable(modeloReporte);
+                resultado.add(new JScrollPane(tabla), BorderLayout.CENTER);
+
+                JPanel panelBotones = new JPanel();
+                JButton btnLimpiar = new JButton("Limpiar Búsqueda");
+                JButton btnExportarPDF = new JButton("Exportar PDF");
+                JButton btnExportarExcel = new JButton("Exportar Excel");
+
+                // Exportar PDF
+                btnExportarPDF.addActionListener(ev -> {
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setSelectedFile(new File("reporte.pdf"));
+                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            Document document = new Document();
+                            PdfWriter.getInstance(document, new FileOutputStream(fileChooser.getSelectedFile()));
+                            document.open();
+
+                            PdfPTable pdfTable = new PdfPTable(tabla.getColumnCount());
+                            for (int i = 0; i < tabla.getColumnCount(); i++) {
+                                pdfTable.addCell(tabla.getColumnName(i));
+                            }
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                for (int j = 0; j < tabla.getColumnCount(); j++) {
+                                    pdfTable.addCell(tabla.getValueAt(i, j).toString());
+                                }
+                            }
+
+                            document.add(new Paragraph("Reporte de Asistencia"));
+                            document.add(pdfTable);
+                            document.close();
+                            JOptionPane.showMessageDialog(resultado, "PDF exportado correctamente.");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(resultado, "Error al exportar PDF: " + ex.getMessage());
+                        }
+                    }
+                });
+
+                // Exportar Excel
+                btnExportarExcel.addActionListener(ev -> {
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setSelectedFile(new File("reporte.xlsx"));
+                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
+                        try (Workbook workbook = new XSSFWorkbook()) {
+                            Sheet sheet = workbook.createSheet("Reporte");
+                            Row header = sheet.createRow(0);
+                            for (int i = 0; i < tabla.getColumnCount(); i++) {
+                                header.createCell(i).setCellValue(tabla.getColumnName(i));
+                            }
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                Row row = sheet.createRow(i + 1);
+                                for (int j = 0; j < tabla.getColumnCount(); j++) {
+                                    row.createCell(j).setCellValue(tabla.getValueAt(i, j).toString());
+                                }
+                            }
+                            FileOutputStream fileOut = new FileOutputStream(fileChooser.getSelectedFile());
+                            workbook.write(fileOut);
+                            fileOut.close();
+                            JOptionPane.showMessageDialog(resultado, "Excel exportado correctamente.");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(resultado, "Error al exportar Excel: " + ex.getMessage());
+                        }
+                    }
+                });
+
+                btnLimpiar.addActionListener(ev -> {
+                    campoCodigo.setText("");
+                    resultado.dispose();
+                    escanearUID.run();
+                });
+
+                panelBotones.add(btnLimpiar);
+                panelBotones.add(btnExportarPDF);
+                panelBotones.add(btnExportarExcel);
+                resultado.add(panelBotones, BorderLayout.SOUTH);
+
+                resultado.setLocationRelativeTo(dialogo);
+                resultado.setVisible(true);
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
+            }
+        });
+
+        dialogo.setLocationRelativeTo(ventana);
+        dialogo.setVisible(true);
+    }
     
     // eliminar tabla de la base de datos 
     private static void eliminarTabla() {
