@@ -23,8 +23,13 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Queue;
+import javax.imageio.ImageIO;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 
@@ -44,62 +49,90 @@ public class ControlDocentes {
     private static void conectarBaseDatos() {
         conexion = ConexionBD.getConnection();
     }
-
+    //ventana principal
     private static void crearVentana() {
-        ventana = new JFrame("Control de Docentes");//titulo de la ventana principal
+        ventana = new JFrame("Control de Docentes");
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        ventana.setSize(800, 500);//dimensiones de la ventana
-        ventana.setLocationRelativeTo(null);// es para que la ventana emerja desde el centro
+        ventana.setSize(1000, 600); // Aumentamos el tamaño de la ventana
+        ventana.setLocationRelativeTo(null);
         ventana.setLayout(null);
 
         // Fondo para la ventana principal
-        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");//sirve para fondo de la ventana
+        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");
         Image imagenOriginal = originalIcon.getImage();
-        Image imagenEscalada = imagenOriginal.getScaledInstance(800, 500, Image.SCALE_SMOOTH);
+        Image imagenEscalada = imagenOriginal.getScaledInstance(1000, 600, Image.SCALE_SMOOTH);
         ImageIcon iconoEscalado = new ImageIcon(imagenEscalada);
         JLabel fondo = new JLabel(iconoEscalado);
-        fondo.setBounds(0, 0, 800, 500);
+        fondo.setBounds(0, 0, 1000, 600);
+        fondo.setLayout(null);
 
-        JLabel titulo = new JLabel("CONTROL DE DOCENTES");//titulo principal del sistema 
-        titulo.setFont(new Font("Arial", Font.BOLD, 24));//formato 
+        // Logo izquierdo escalado
+        ImageIcon logoIzqOriginal = new ImageIcon("src/imagenes/usb_logo.png");
+        Image imgIzqEscalada = logoIzqOriginal.getImage().getScaledInstance(150, 75, Image.SCALE_SMOOTH);
+        ImageIcon logoIzqEscalado = new ImageIcon(imgIzqEscalada);
+        JLabel lblLogoIzquierdo = new JLabel(logoIzqEscalado);
+        lblLogoIzquierdo.setBounds(20, 10, 150, 75);
+
+        // Logo derecho escalado
+        ImageIcon logoDerOriginal = new ImageIcon("src/imagenes/ACN_logo.png");
+        Image imgDerEscalada = logoDerOriginal.getImage().getScaledInstance(150, 75, Image.SCALE_SMOOTH);
+        ImageIcon logoDerEscalado = new ImageIcon(imgDerEscalada);
+        JLabel lblLogoDerecho = new JLabel(logoDerEscalado);
+        lblLogoDerecho.setBounds(850, 10, 130, 75);
+
+
+        // Título
+        JLabel titulo = new JLabel("CONTROL DE DOCENTES");
+        titulo.setFont(new Font("Arial", Font.BOLD, 28));
         titulo.setForeground(Color.GREEN);
-        titulo.setBounds(250, 20, 400, 30);
-        
-        //botones que cumplirar sus respectivas funciones
-        //aqui registraremos a nuevos docentes 
+        titulo.setBounds(340, 30, 400, 30);
+
+        // Estilo común de botones
+        Color azulBoton = new Color(0, 102, 204);
+        Font fuenteBoton = new Font("Arial", Font.BOLD, 14);
+
         JButton btnRegistrar = new JButton("Registrar");
-        btnRegistrar.setBounds(50, 80, 200, 40);
+        btnRegistrar.setBounds(50, 120, 200, 40);
+        btnRegistrar.setBackground(azulBoton);
+        btnRegistrar.setForeground(Color.WHITE);
+        btnRegistrar.setFont(fuenteBoton);
         btnRegistrar.addActionListener(e -> insertarDatos());
-        
-        //en este boton podremos ver con un reporte al docente registrado en asistencia
-        //requisitos cod_docente, mes y año 
+
         JButton btnVerReporte = new JButton("Ver Reporte");
-        btnVerReporte.setBounds(50, 130, 200, 40);
+        btnVerReporte.setBounds(50, 180, 200, 40);
+        btnVerReporte.setBackground(azulBoton);
+        btnVerReporte.setForeground(Color.WHITE);
+        btnVerReporte.setFont(fuenteBoton);
         btnVerReporte.addActionListener(e -> mostrarReporte());
-        
-        //Aqui exitira 4 opciones de despliegue 
-        //eliminar registro, eliminar tabla, actualizar registro y mostrar registro
+
         JButton btnEditar = new JButton("Editar");
-        btnEditar.setBounds(50, 180, 200, 40);
+        btnEditar.setBounds(50, 240, 200, 40);
+        btnEditar.setBackground(azulBoton);
+        btnEditar.setForeground(Color.WHITE);
+        btnEditar.setFont(fuenteBoton);
         btnEditar.addActionListener(e -> mostrarOpcionesEditar());
-        
-        //Aqui iniciamos con el registro de asistencia, esto nos servira para el reporte
+
         JButton btnIniciarControl = new JButton("Iniciar Control");
-        btnIniciarControl.setBounds(50, 230, 200, 40);
+        btnIniciarControl.setBounds(50, 300, 200, 40);
+        btnIniciarControl.setBackground(azulBoton);
+        btnIniciarControl.setForeground(Color.WHITE);
+        btnIniciarControl.setFont(fuenteBoton);
         btnIniciarControl.addActionListener(e -> iniciarControlRFID());
-        
-        //con este boton podremos salir del sistema
+
         JButton btnSalir = new JButton("Salir");
-        btnSalir.setBounds(50, 280, 200, 40);
+        btnSalir.setBounds(50, 360, 200, 40);
+        btnSalir.setBackground(azulBoton);
+        btnSalir.setForeground(Color.WHITE);
+        btnSalir.setFont(fuenteBoton);
         btnSalir.addActionListener(e -> System.exit(0));
 
-        // Tabla de asistencia en tiempo real en ventana principal
-        modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);//atributos
+        modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);
         tablaAsistencia = new JTable(modeloAsistencia);
         JScrollPane scroll = new JScrollPane(tablaAsistencia);
-        scroll.setBounds(300, 80, 460, 300);
+        scroll.setBounds(300, 120, 660, 350); // ajustado al nuevo tamaño
 
-        fondo.setLayout(null);
+        fondo.add(lblLogoIzquierdo);
+        fondo.add(lblLogoDerecho);
         fondo.add(titulo);
         fondo.add(btnRegistrar);
         fondo.add(btnVerReporte);
@@ -111,6 +144,7 @@ public class ControlDocentes {
         ventana.setContentPane(fondo);
         ventana.setVisible(true);
     }
+    
     
     //metodo para desplegar opcioes de editar en pantalla
     private static void mostrarOpcionesEditar() {
@@ -197,184 +231,9 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
-    // aqui podremos mostrar el reporte con escaneo de tarjeta
     
-    /*
-    private static void mostrarReporte() {
-        JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
-        dialogo.setLayout(new GridLayout(4, 2, 5, 5));
-        dialogo.setSize(400, 200);
-
-        JTextField campoCodigo = new JTextField();
-        campoCodigo.setEditable(false);//le doy en no esditar campo del cod_docente
-
-        JTextField campoAnio = new JTextField();
-
-        String[] meses = {
-            "Seleccionar mes...",
-            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-        };
-        JComboBox<String> comboMes = new JComboBox<>(meses);
-
-        dialogo.add(new JLabel("Código RFID del docente (opcional):"));
-        dialogo.add(campoCodigo);
-        dialogo.add(new JLabel("Mes (opcional):"));
-        dialogo.add(comboMes);
-        dialogo.add(new JLabel("Año (ej. 2025, obligatorio si hay mes):"));
-        dialogo.add(campoAnio);
-
-        JButton btnBuscar = new JButton("Buscar");
-        dialogo.add(new JLabel());
-        dialogo.add(btnBuscar);
-
-        Runnable escanearUID = () -> {
-            new Thread(() -> {
-                SerialPort puerto = SerialPort.getCommPorts()[0];
-                puerto.setComPortParameters(9600, 8, 1, 0);
-                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-                if (puerto.openPort()) {
-                    Scanner scanner = new Scanner(puerto.getInputStream());
-                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
-                        if (scanner.hasNextLine()) {
-                            String codigo = scanner.nextLine().trim();
-                            System.out.println("UID escaneado: " + codigo);
-                            SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
-                            break;
-                        }
-                    }
-                    scanner.close();
-                    puerto.closePort();
-                }
-            }).start();
-        };
-
-        // Iniciar escaneo desde el principio
-        escanearUID.run();
-
-        // Detectar si se borra manualmente el campo para volver a escanear
-        campoCodigo.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            boolean escaneando = false;
-            //estos tres metodo son para actualizar y elimianr el codigo de la tarjeta para seeguir escaneando mas
-            private void reactivarSiVacio() {
-                if (campoCodigo.getText().trim().isEmpty() && !escaneando) {
-                    escaneando = true;
-                    escanearUID.run();
-                    // Espera breve para evitar múltiples hilos
-                    new javax.swing.Timer(1000, evt -> escaneando = false).start();
-                }
-            }
-
-            @Override
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                reactivarSiVacio();
-            }
-
-            @Override
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                reactivarSiVacio();
-            }
-
-            @Override
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
-                // No se usa en campos de texto planos
-            }
-        });
-
-        btnBuscar.addActionListener(e -> {
-            String codigo = campoCodigo.getText().trim();
-            int mes = comboMes.getSelectedIndex();
-            String anio = campoAnio.getText().trim();
-
-            if (mes > 0 && anio.isEmpty()) {
-                JOptionPane.showMessageDialog(dialogo, "Debe ingresar el año si selecciona un mes.");
-                return;
-            }
-
-            if (mes == 0 && anio.isEmpty()) {
-                JOptionPane.showMessageDialog(dialogo, "Debe ingresar al menos el año o el año y el mes.");
-                return;
-            }
-
-            try {
-                StringBuilder sql = new StringBuilder("SELECT uid, nombre, fecha FROM asistencia WHERE 1=1");
-                if (!codigo.isEmpty()) {
-                    sql.append(" AND uid = ?");
-                }
-                if (!anio.isEmpty()) {
-                    sql.append(" AND YEAR(fecha) = ?");
-                }
-                if (mes > 0) {
-                    sql.append(" AND MONTH(fecha) = ?");
-                }
-                sql.append(" ORDER BY fecha ASC");
-
-                PreparedStatement stmt = conexion.prepareStatement(sql.toString());
-
-                int index = 1;
-                if (!codigo.isEmpty()) {
-                    stmt.setString(index++, codigo);
-                }
-                if (!anio.isEmpty()) {
-                    stmt.setInt(index++, Integer.parseInt(anio));
-                }
-                if (mes > 0) {
-                    stmt.setInt(index++, mes);
-                }
-
-                ResultSet rs = stmt.executeQuery();
-
-                DefaultTableModel modeloReporte = new DefaultTableModel();
-                modeloReporte.addColumn("Código");
-                modeloReporte.addColumn("Nombre");
-                modeloReporte.addColumn("Fecha");
-                modeloReporte.addColumn("Hora");
-
-                boolean hayResultados = false;
-                while (rs.next()) {
-                    hayResultados = true;
-                    String[] partes = rs.getString("fecha").split(" ");
-                    modeloReporte.addRow(new Object[]{
-                        rs.getString("uid"),
-                        rs.getString("nombre"),
-                        partes[0],
-                        partes.length > 1 ? partes[1] : ""
-                    });
-                }
-
-                if (!hayResultados) {
-                    JOptionPane.showMessageDialog(dialogo, "No se encontraron registros.");
-                    return;
-                }
-
-                JDialog resultado = new JDialog(dialogo, "Resultados", true);
-                resultado.setLayout(new BorderLayout());
-                resultado.setSize(700, 350);
-
-                JTable tabla = new JTable(modeloReporte);
-                resultado.add(new JScrollPane(tabla), BorderLayout.CENTER);
-                
-                //con este boton eliminamos contenido del campo de indentificacion
-                JButton btnLimpiar = new JButton("Limpiar Búsqueda");
-                btnLimpiar.addActionListener(ev -> {
-                    campoCodigo.setText("");
-                    resultado.dispose();
-                    escanearUID.run(); // reactivar escaneo
-                });
-                resultado.add(btnLimpiar, BorderLayout.SOUTH);
-
-                resultado.setLocationRelativeTo(dialogo);
-                resultado.setVisible(true);
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
-            }
-        });
-
-        dialogo.setLocationRelativeTo(ventana);
-        dialogo.setVisible(true);
-    }
-    */
+    
+    // aqui podremos mostrar el reporte con escaneo de tarjeta
     
     private static void mostrarReporte() {
         JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
@@ -523,9 +382,29 @@ public class ControlDocentes {
 
                 JPanel panelBotones = new JPanel();
                 JButton btnLimpiar = new JButton("Limpiar Búsqueda");
-                JButton btnExportarPDF = new JButton("Exportar PDF");
-                JButton btnExportarExcel = new JButton("Exportar Excel");
-
+                //agregando imagen al los botones de exportacion
+                ImageIcon iconoPDF = new ImageIcon("src/imagenes/icono_pdf.jpg");
+                ImageIcon iconoEXCEL = new ImageIcon("src/imagenes/icono_excel.jpg");
+                
+                Image imgPDF = iconoPDF.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                Image imgEXCEL = iconoEXCEL.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                
+                ImageIcon iconoPDFEscalado = new ImageIcon(imgPDF);
+                ImageIcon iconoEXCELEscalado = new ImageIcon(imgEXCEL);
+                
+                JButton btnExportarPDF = new JButton(iconoPDFEscalado);
+                btnExportarPDF.setToolTipText("Exportar PDF");
+                btnExportarPDF.setBorderPainted(false);
+                btnExportarPDF.setContentAreaFilled(false);
+                
+                
+                
+                JButton btnExportarExcel = new JButton(iconoEXCELEscalado);
+                btnExportarExcel.setToolTipText("Exportar EXCEL");
+                btnExportarExcel.setBorderPainted(false);
+                btnExportarExcel.setContentAreaFilled(false);
+               
+                
                 // Exportar PDF
                 btnExportarPDF.addActionListener(ev -> {
                     JFileChooser fileChooser = new JFileChooser();
