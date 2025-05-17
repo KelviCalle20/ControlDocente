@@ -23,13 +23,21 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.image.BufferedImage;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+
+import java.util.ArrayList;
+import java.util.List;
 import javax.imageio.ImageIO;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 
@@ -175,6 +183,7 @@ public class ControlDocentes {
             }
         }
     }
+    /*
     //metodo para registrar nuevos docentes
     private static void insertarDatos() {
         JDialog dialogo = new JDialog(ventana, "Registrarse", true);
@@ -231,8 +240,234 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
+    */
+   
+    private static void insertarDatos() {
+        JDialog dialogo = new JDialog(ventana, "Registrarse", true);
+        dialogo.setLayout(new BorderLayout());
+
+        // === Colores estilo neón oscuro ===
+        Color fondoOscuro = new Color(30, 0, 50);
+        Color textoNeon = new Color(0, 255, 180);
+        Color bordeNeon = new Color(0, 255, 150);
+        Color botonFondo = new Color(40, 40, 60);
+        Color botonTexto = new Color(0, 255, 200);
+
+        JPanel panelFormulario = new JPanel(new GridLayout(11, 2, 5, 5));
+        String[] etiquetas = {"Código Docente (escanear TJ):", "Nombre:", "Apellido Paterno:", "Apellido Materno:",
+            "Hora Entrada:", "Hora Salida:", "Cantidad Alumnado:", "Materia:", "Aula:", "Turno:"};
+
+        JTextField[] campos = new JTextField[10];
+        JComboBox<String>[] combosHora = new JComboBox[2];
+        JComboBox<String> comboTurno = new JComboBox<>(new String[]{"Mañana", "Tarde", "Noche"});
+
+        for (int i = 0; i < 10; i++) {
+            panelFormulario.add(new JLabel(etiquetas[i]));
+            if (i == 4 || i == 5) {
+                JComboBox<String> comboHora = new JComboBox<>();
+                combosHora[i - 4] = comboHora;
+                panelFormulario.add(comboHora);
+            } else if (i == 9) {
+                panelFormulario.add(comboTurno);
+            } else {
+                campos[i] = new JTextField();
+                campos[i].setEditable(i != 0);
+                panelFormulario.add(campos[i]);
+            }
+        }
+
+        // Cambiar las horas según el turno
+        comboTurno.addActionListener(e -> {
+            String turnoSeleccionado = (String) comboTurno.getSelectedItem();
+            String[] horas = generarHorasPorTurno(turnoSeleccionado);
+            for (JComboBox<String> combo : combosHora) {
+                combo.removeAllItems();
+                for (String h : horas) {
+                    combo.addItem(h);
+                }
+            }
+        });
+        comboTurno.setSelectedIndex(0); // Dispara el primer llenado de horas
+
+        // Panel derecho para imagen
+        JPanel panelImagen = new JPanel(new BorderLayout());
+        JLabel labelImagen = new JLabel();
+        labelImagen.setHorizontalAlignment(SwingConstants.CENTER);
+        labelImagen.setVerticalAlignment(SwingConstants.CENTER);
+        labelImagen.setPreferredSize(new Dimension(200, 200));
+
+        JButton btnCargarImagen = new JButton("Cargar Foto");
+        final String[] rutaImagen = {null};
+
+        
+        
+        btnCargarImagen.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            int resultado = fileChooser.showOpenDialog(dialogo);
+            if (resultado == JFileChooser.APPROVE_OPTION) {
+                File imagenSeleccionada = fileChooser.getSelectedFile();
+
+                // === Crear carpeta 'fotos' si no existe ===
+                File carpetaFotos = new File("src/fotos_docentes");
+                if (!carpetaFotos.exists()) {
+                    carpetaFotos.mkdirs();
+                }
+
+                // === Copiar imagen a la carpeta 'fotos' con un nombre único ===
+                String nombreArchivo = campos[0].getText().trim();
+                if (nombreArchivo.isEmpty()) {
+                    nombreArchivo = String.valueOf(System.currentTimeMillis()); // fallback
+                }
+
+                String extension = imagenSeleccionada.getName().substring(imagenSeleccionada.getName().lastIndexOf('.'));
+                File destino = new File(carpetaFotos, nombreArchivo + extension);
+                try {
+                    Files.copy(imagenSeleccionada.toPath(), destino.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    rutaImagen[0] = destino.getAbsolutePath(); // Ruta final guardada
+
+                    ImageIcon icon = new ImageIcon(new ImageIcon(rutaImagen[0])
+                            .getImage().getScaledInstance(200, 200, Image.SCALE_SMOOTH));
+                    labelImagen.setIcon(icon);
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(dialogo, "Error al copiar la imagen: " + ex.getMessage());
+                }
+            }
+        });
+
+        // === Estilo visual (paso 2) ===
+        dialogo.getContentPane().setBackground(fondoOscuro);
+        panelFormulario.setBackground(fondoOscuro);
+        panelImagen.setBackground(fondoOscuro);
+        labelImagen.setBorder(BorderFactory.createLineBorder(bordeNeon, 2));
+        labelImagen.setOpaque(true);
+        labelImagen.setBackground(new Color(10, 10, 20));
+
+        panelImagen.add(labelImagen, BorderLayout.CENTER);
+        panelImagen.add(btnCargarImagen, BorderLayout.SOUTH);
+
+        // Escaneo RFID
+        new Thread(() -> {
+            SerialPort puerto = SerialPort.getCommPorts()[0];
+            puerto.setComPortParameters(9600, 8, 1, 0);
+            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+            if (puerto.openPort()) {
+                Scanner scanner = new Scanner(puerto.getInputStream());
+                while (dialogo.isVisible()) {
+                    if (scanner.hasNextLine()) {
+                        String codigo = scanner.nextLine().trim();
+                        System.out.println("tarjeta leída: " + codigo);
+                        SwingUtilities.invokeLater(() -> campos[0].setText(codigo));
+                        break;
+                    }
+                }
+                scanner.close();
+                puerto.closePort();
+            }
+        }).start();
+
+        JButton btnInsertar = new JButton("Registrar");
+        btnInsertar.addActionListener(e -> {
+            try (PreparedStatement stmt = conexion.prepareStatement(
+                    "INSERT INTO docentes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+
+                stmt.setString(1, campos[0].getText()); // Código
+                stmt.setString(2, campos[1].getText()); // Nombre
+                stmt.setString(3, campos[2].getText()); // Apellido Paterno
+                stmt.setString(4, campos[3].getText()); // Apellido Materno
+                stmt.setString(5, (String) combosHora[0].getSelectedItem()); // Hora Entrada
+                stmt.setString(6, (String) combosHora[1].getSelectedItem()); // Hora Salida
+                stmt.setString(7, campos[6].getText()); // Cantidad Alumnado
+                stmt.setString(8, campos[7].getText()); // Materia
+                stmt.setString(9, campos[8].getText()); // Aula
+                stmt.setString(10, (String) comboTurno.getSelectedItem()); // Turno
+
+                stmt.executeUpdate(); // ¡IMPORTANTE! Ejecutar la inserción
+                JOptionPane.showMessageDialog(dialogo, "Registro exitoso.");
+                dialogo.dispose();
+            } catch (SQLException ex) {
+                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
+            }
+        });
+
+        panelFormulario.add(new JLabel());
+        panelFormulario.add(btnInsertar);
+
+        // === Estilo visual (paso 3) ===
+        for (Component comp : panelFormulario.getComponents()) {
+            if (comp instanceof JLabel) {
+                comp.setForeground(textoNeon);
+                comp.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            } else if (comp instanceof JTextField) {
+                JTextField field = (JTextField) comp;
+                field.setBackground(new Color(40, 0, 60));
+                field.setForeground(textoNeon);
+                field.setCaretColor(Color.WHITE);
+                field.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+
+                field.addFocusListener(new FocusAdapter() {
+                    @Override
+                    public void focusGained(FocusEvent e) {
+                        field.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 2));
+                    }
+
+                    @Override
+                    public void focusLost(FocusEvent e) {
+                        field.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+                    }
+                });
+            } else if (comp instanceof JComboBox) {
+                comp.setBackground(new Color(50, 0, 80));
+                comp.setForeground(textoNeon);
+                comp.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            }
+        }
+
+        btnCargarImagen.setBackground(botonFondo);
+        btnCargarImagen.setForeground(botonTexto);
+        btnInsertar.setBackground(botonFondo);
+        btnInsertar.setForeground(botonTexto);
+
+        dialogo.add(panelFormulario, BorderLayout.CENTER);
+        dialogo.add(panelImagen, BorderLayout.EAST);
+        dialogo.pack();
+        dialogo.setLocationRelativeTo(ventana);
+        dialogo.setVisible(true);
+   
+        
+    }
     
+    private static String[] generarHorasPorTurno(String turno) {
+        List<String> horas = new ArrayList<>();
+        int inicio = 6, fin = 22;
+
+        switch (turno) {
+            case "Mañana":
+                inicio = 6;
+                fin = 12;
+                break;
+            case "Tarde":
+                inicio = 13;
+                fin = 18;
+                break;
+            case "Noche":
+                inicio = 19;
+                fin = 22;
+                break;
+        }
+
+        for (int h = inicio; h <= fin; h++) {
+            for (int m = 0; m < 60; m += 30) {
+                if ("Mañana".equals(turno) && h == 12 && m > 0) {
+                    break;
+                }
+                horas.add(String.format("%02d:%02d", h, m));
+            }
+        }
+        return horas.toArray(new String[0]);
+    }
     
+  
+    /*
     // aqui podremos mostrar el reporte con escaneo de tarjeta
     
     private static void mostrarReporte() {
@@ -484,6 +719,321 @@ public class ControlDocentes {
         dialogo.setLocationRelativeTo(ventana);
         dialogo.setVisible(true);
     }
+    */
+    
+    private static void mostrarReporte() {
+        JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
+        dialogo.setLayout(new GridLayout(4, 2, 5, 5));
+        dialogo.setSize(400, 200);
+
+        // Colores neón
+        Color fondoNeon = new Color(30, 0, 60);
+        Color textoNeon = new Color(0, 255, 180);
+        Color bordeNeon = new Color(150, 0, 255);
+
+        dialogo.getContentPane().setBackground(fondoNeon);
+
+        JTextField campoCodigo = new JTextField();
+        campoCodigo.setEditable(false);
+
+        JTextField campoAnio = new JTextField();
+
+        String[] meses = {
+            "Seleccionar mes...", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        };
+        JComboBox<String> comboMes = new JComboBox<>(meses);
+
+        JLabel lbl1 = new JLabel("Código RFID del docente (opcional):");
+        JLabel lbl2 = new JLabel("Mes (opcional):");
+        JLabel lbl3 = new JLabel("Año (ej. 2025, obligatorio si hay mes):");
+
+        // Aplicar estilos a labels
+        for (JLabel label : new JLabel[]{lbl1, lbl2, lbl3}) {
+            label.setForeground(textoNeon);
+            label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        }
+
+        // Aplicar estilos a campos de texto
+        for (JTextField campo : new JTextField[]{campoCodigo, campoAnio}) {
+            campo.setBackground(new Color(40, 0, 60));
+            campo.setForeground(textoNeon);
+            campo.setCaretColor(Color.WHITE);
+            campo.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+            campo.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent e) {
+                    campo.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 2));
+                }
+
+                @Override
+                public void focusLost(FocusEvent e) {
+                    campo.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+                }
+            });
+        }
+
+        comboMes.setBackground(new Color(50, 0, 80));
+        comboMes.setForeground(textoNeon);
+        comboMes.setFont(new Font("Segoe UI", Font.BOLD, 13));
+
+        JButton btnBuscar = new JButton("Buscar");
+        btnBuscar.setBackground(bordeNeon);
+        btnBuscar.setForeground(Color.BLACK);
+        btnBuscar.setFocusPainted(false);
+
+        dialogo.add(lbl1);
+        dialogo.add(campoCodigo);
+        dialogo.add(lbl2);
+        dialogo.add(comboMes);
+        dialogo.add(lbl3);
+        dialogo.add(campoAnio);
+        dialogo.add(new JLabel());
+        dialogo.add(btnBuscar);
+
+        Runnable escanearUID = () -> {
+            new Thread(() -> {
+                SerialPort puerto = SerialPort.getCommPorts()[0];
+                puerto.setComPortParameters(9600, 8, 1, 0);
+                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+                if (puerto.openPort()) {
+                    Scanner scanner = new Scanner(puerto.getInputStream());
+                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
+                        if (scanner.hasNextLine()) {
+                            String codigo = scanner.nextLine().trim();
+                            System.out.println("UID escaneado: " + codigo);
+                            SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
+                            break;
+                        }
+                    }
+                    scanner.close();
+                    puerto.closePort();
+                }
+            }).start();
+        };
+
+        escanearUID.run();
+
+        campoCodigo.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            boolean escaneando = false;
+
+            private void reactivarSiVacio() {
+                if (campoCodigo.getText().trim().isEmpty() && !escaneando) {
+                    escaneando = true;
+                    escanearUID.run();
+                    new javax.swing.Timer(1000, evt -> escaneando = false).start();
+                }
+            }
+
+            public void insertUpdate(javax.swing.event.DocumentEvent e) {
+                reactivarSiVacio();
+            }
+
+            public void removeUpdate(javax.swing.event.DocumentEvent e) {
+                reactivarSiVacio();
+            }
+
+            public void changedUpdate(javax.swing.event.DocumentEvent e) {
+            }
+        });
+
+        btnBuscar.addActionListener(e -> {
+            String codigo = campoCodigo.getText().trim();
+            int mes = comboMes.getSelectedIndex();
+            String anio = campoAnio.getText().trim();
+
+            if (mes > 0 && anio.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Debe ingresar el año si selecciona un mes.");
+                return;
+            }
+
+            if (mes == 0 && anio.isEmpty()) {
+                JOptionPane.showMessageDialog(dialogo, "Debe ingresar al menos el año o el año y el mes.");
+                return;
+            }
+
+            try {
+                StringBuilder sql = new StringBuilder("SELECT uid, nombre, fecha FROM asistencia WHERE 1=1");
+                if (!codigo.isEmpty()) {
+                    sql.append(" AND uid = ?");
+                }
+                if (!anio.isEmpty()) {
+                    sql.append(" AND YEAR(fecha) = ?");
+                }
+                if (mes > 0) {
+                    sql.append(" AND MONTH(fecha) = ?");
+                }
+                sql.append(" ORDER BY fecha ASC");
+
+                PreparedStatement stmt = conexion.prepareStatement(sql.toString());
+                int index = 1;
+                if (!codigo.isEmpty()) {
+                    stmt.setString(index++, codigo);
+                }
+                if (!anio.isEmpty()) {
+                    stmt.setInt(index++, Integer.parseInt(anio));
+                }
+                if (mes > 0) {
+                    stmt.setInt(index++, mes);
+                }
+
+                ResultSet rs = stmt.executeQuery();
+
+                DefaultTableModel modeloReporte = new DefaultTableModel();
+                modeloReporte.addColumn("Código");
+                modeloReporte.addColumn("Nombre");
+                modeloReporte.addColumn("Fecha");
+                modeloReporte.addColumn("Hora");
+
+                boolean hayResultados = false;
+                while (rs.next()) {
+                    hayResultados = true;
+                    String[] partes = rs.getString("fecha").split(" ");
+                    modeloReporte.addRow(new Object[]{
+                        rs.getString("uid"),
+                        rs.getString("nombre"),
+                        partes[0],
+                        partes.length > 1 ? partes[1] : ""
+                    });
+                }
+
+                if (!hayResultados) {
+                    JOptionPane.showMessageDialog(dialogo, "No se encontraron registros.");
+                    return;
+                }
+
+                JDialog resultado = new JDialog(dialogo, "Resultados", true);
+                resultado.setLayout(new BorderLayout());
+                resultado.getContentPane().setBackground(new Color(20, 20, 30));
+                resultado.setSize(800, 400);
+
+                JTable tabla = new JTable(modeloReporte);
+                resultado.add(new JScrollPane(tabla), BorderLayout.CENTER);
+                
+                tabla.setShowGrid(true);
+                tabla.setGridColor(new Color(138, 43, 226));
+                tabla.setForeground(Color.WHITE);
+                tabla.setBackground(new Color(20, 20, 30));
+                tabla.setSelectionBackground(new Color(138, 43, 226));
+                tabla.setSelectionForeground(Color.BLACK);
+                tabla.setFont(new Font("SansSerif", Font.PLAIN, 14));
+                tabla.setRowHeight(28);
+
+                JPanel panelBotones = new JPanel();
+                JButton btnLimpiar = new JButton("Limpiar Búsqueda");
+                Color BotonFondo = new Color(138, 43, 226);
+                Color BotonTexto = Color.WHITE;
+                btnLimpiar.setBackground(BotonFondo);
+                btnLimpiar.setForeground(BotonTexto);
+                btnLimpiar.setFocusPainted(false);
+                btnLimpiar.setFont(new Font("SansSerif", Font.BOLD, 14));
+                
+                
+                
+                //agregando imagen al los botones de exportacion
+                ImageIcon iconoPDF = new ImageIcon("src/imagenes/icono_pdf.jpg");
+                ImageIcon iconoEXCEL = new ImageIcon("src/imagenes/icono_excel.jpg");
+                
+                Image imgPDF = iconoPDF.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                Image imgEXCEL = iconoEXCEL.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
+                
+                ImageIcon iconoPDFEscalado = new ImageIcon(imgPDF);
+                ImageIcon iconoEXCELEscalado = new ImageIcon(imgEXCEL);
+                
+                JButton btnExportarPDF = new JButton(iconoPDFEscalado);
+                btnExportarPDF.setToolTipText("Exportar PDF");
+                btnExportarPDF.setBorder(BorderFactory.createLineBorder(new Color(138, 43, 226)));
+                btnExportarPDF.setFocusPainted(false);
+                btnExportarPDF.setContentAreaFilled(false);
+                
+                
+                
+                JButton btnExportarExcel = new JButton(iconoEXCELEscalado);
+                btnExportarExcel.setToolTipText("Exportar EXCEL");
+                btnExportarExcel.setFocusPainted(false);
+                btnExportarExcel.setBorder(BorderFactory.createLineBorder(new Color(138, 43, 226)));
+                btnExportarExcel.setContentAreaFilled(false);
+               
+                
+                
+                // Exportar PDF
+                btnExportarPDF.addActionListener(ev -> {
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setSelectedFile(new File("reporte.pdf"));
+                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            Document document = new Document();
+                            PdfWriter.getInstance(document, new FileOutputStream(fileChooser.getSelectedFile()));
+                            document.open();
+
+                            PdfPTable pdfTable = new PdfPTable(tabla.getColumnCount());
+                            for (int i = 0; i < tabla.getColumnCount(); i++) {
+                                pdfTable.addCell(tabla.getColumnName(i));
+                            }
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                for (int j = 0; j < tabla.getColumnCount(); j++) {
+                                    pdfTable.addCell(tabla.getValueAt(i, j).toString());
+                                }
+                            }
+
+                            document.add(new Paragraph("Reporte de Asistencia"));
+                            document.add(pdfTable);
+                            document.close();
+                            JOptionPane.showMessageDialog(resultado, "PDF exportado correctamente.");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(resultado, "Error al exportar PDF: " + ex.getMessage());
+                        }
+                    }
+                });
+
+                // Exportar Excel
+                btnExportarExcel.addActionListener(ev -> {
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setSelectedFile(new File("reporte.xlsx"));
+                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
+                        try (Workbook workbook = new XSSFWorkbook()) {
+                            Sheet sheet = workbook.createSheet("Reporte");
+                            Row header = sheet.createRow(0);
+                            for (int i = 0; i < tabla.getColumnCount(); i++) {
+                                header.createCell(i).setCellValue(tabla.getColumnName(i));
+                            }
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                Row row = sheet.createRow(i + 1);
+                                for (int j = 0; j < tabla.getColumnCount(); j++) {
+                                    row.createCell(j).setCellValue(tabla.getValueAt(i, j).toString());
+                                }
+                            }
+                            FileOutputStream fileOut = new FileOutputStream(fileChooser.getSelectedFile());
+                            workbook.write(fileOut);
+                            fileOut.close();
+                            JOptionPane.showMessageDialog(resultado, "Excel exportado correctamente.");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(resultado, "Error al exportar Excel: " + ex.getMessage());
+                        }
+                    }
+                });
+
+                btnLimpiar.addActionListener(ev -> {
+                    campoCodigo.setText("");
+                    resultado.dispose();
+                    escanearUID.run();
+                });
+
+                panelBotones.add(btnLimpiar);
+                panelBotones.add(btnExportarPDF);
+                panelBotones.add(btnExportarExcel);
+                resultado.add(panelBotones, BorderLayout.SOUTH);
+
+                resultado.setLocationRelativeTo(dialogo);
+                resultado.setVisible(true);
+
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
+            }
+        });
+        dialogo.setLocationRelativeTo(ventana);
+        dialogo.setVisible(true);
+    }
     
     // eliminar tabla de la base de datos 
     private static void eliminarTabla() {
@@ -652,33 +1202,76 @@ public class ControlDocentes {
             JOptionPane.showMessageDialog(ventana, "Error al cargar los datos: " + e.getMessage());
         }
     }
-
+    
+    //metodo de mostradatos() actualizado en estilo y carga de fotos de docente
     private static void mostrarDatos() {
         JDialog dialogo = new JDialog(ventana, "Datos registrados", true);
-        dialogo.setSize(900, 300);
-        DefaultTableModel modelo = new DefaultTableModel();
+        dialogo.setSize(1060, 500);
+        dialogo.setLocationRelativeTo(ventana);
+        dialogo.getContentPane().setBackground(new Color(20, 20, 40)); // fondo oscuro neón
 
-        String[] columnas = {"Código", "Nombre", "Ap. Paterno", "Ap. Materno", "Entrada", "Salida", "Alumnado", "Materia", "Aula", "Turno"};
+        DefaultTableModel modelo = new DefaultTableModel() {
+            public Class<?> getColumnClass(int column) {
+                if (column == 10) {
+                    return ImageIcon.class; // Columna de imagen
+                }
+                return String.class;
+            }
+
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        String[] columnas = {
+            "Código", "Nombre", "Ap. Paterno", "Ap. Materno",
+            "Entrada", "Salida", "Alumnado", "Materia", "Aula", "Turno", "Foto"
+        };
         for (String col : columnas) {
             modelo.addColumn(col);
         }
 
         try (Statement stmt = conexion.createStatement(); ResultSet rs = stmt.executeQuery("SELECT * FROM docentes")) {
             while (rs.next()) {
-                Object[] fila = new Object[10];
+                Object[] fila = new Object[11];
                 for (int i = 0; i < 10; i++) {
                     fila[i] = rs.getString(i + 1);
                 }
+
+                // Buscar imagen del docente
+                String codigo = rs.getString(1);
+                ImageIcon icono = null;
+                String[] extensiones = {".jpg", ".jpeg", ".png"};
+                for (String ext : extensiones) {
+                    File foto = new File("src/fotos_docentes/" + codigo + ext);
+                    if (foto.exists()) {
+                        BufferedImage img = ImageIO.read(foto);
+                        Image imgEscalada = img.getScaledInstance(60, 60, Image.SCALE_SMOOTH);
+                        icono = new ImageIcon(imgEscalada);
+                        break;
+                    }
+                }
+                fila[10] = icono; // Imagen en la última columna
                 modelo.addRow(fila);
             }
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             JOptionPane.showMessageDialog(ventana, "Error: " + ex.getMessage());
         }
 
         JTable tabla = new JTable(modelo);
-        dialogo.add(new JScrollPane(tabla));
+        tabla.setRowHeight(55); // espacio para imagen
+        tabla.setBackground(new Color(30, 30, 60));
+        tabla.setForeground(Color.WHITE);
+        tabla.setGridColor(new Color(100, 0, 150)); // Bordes morados
+        tabla.setSelectionBackground(new Color(60, 0, 100));
+
+        JScrollPane scroll = new JScrollPane(tabla);
+        scroll.getViewport().setBackground(new Color(30, 30, 60));
+        dialogo.add(scroll);
+
         dialogo.setVisible(true);
     }
+    
     // metodo para mostrar en consola cada escaneo de tarjeta rfid
     private static void iniciarControlRFID() {
         JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
@@ -738,6 +1331,7 @@ public class ControlDocentes {
             JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
         }
     }
+    
     private static void mostrarDatosDocente(String uid) {
         try {
             String query = "SELECT cod_docente, nombre, apellido_paterno, apellido_materno, materia, aula, hora_entrada FROM docentes WHERE cod_docente = ?";
