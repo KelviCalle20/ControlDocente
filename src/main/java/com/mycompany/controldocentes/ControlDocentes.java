@@ -38,7 +38,8 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
+
 import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -52,7 +53,9 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 
-
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class ControlDocentes {
 
@@ -361,7 +364,13 @@ public class ControlDocentes {
 
         // Escaneo RFID
         new Thread(() -> {
-            SerialPort puerto = SerialPort.getCommPorts()[0];
+            SerialPort puerto = null;
+            for(SerialPort sp : SerialPort.getCommPorts()){
+                if(sp.getSystemPortName().equals("COM4")){
+                    puerto = sp;
+                    break;
+                }
+            }
             puerto.setComPortParameters(9600, 8, 1, 0);
             puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
             if (puerto.openPort()) {
@@ -863,7 +872,13 @@ public class ControlDocentes {
 
         Runnable escanearUID = () -> {
             new Thread(() -> {
-                SerialPort puerto = SerialPort.getCommPorts()[0];
+                SerialPort puerto = null;
+                for (SerialPort sp : SerialPort.getCommPorts()) {
+                    if (sp.getSystemPortName().equals("COM4")) {
+                        puerto = sp;
+                        break;
+                    }
+                }
                 puerto.setComPortParameters(9600, 8, 1, 0);
                 puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
                 if (puerto.openPort()) {
@@ -1047,11 +1062,26 @@ public class ControlDocentes {
                         datasetTorta.setValue(entry.getKey(), entry.getValue());
                     }
 
+                    /*
                     JFreeChart chartBarra = ChartFactory.createBarChart(
                             "Asistencias por Mes", "Mes", "Cantidad", datasetBarra,
                             PlotOrientation.VERTICAL, false, true, false);
                     JFreeChart chartTorta = ChartFactory.createPieChart(
                             "Distribución de Asistencias", datasetTorta, true, true, false);
+                    */
+                    JFreeChart chartBarra = ChartFactory.createBarChart(
+                            "Asistencias por Mes", "Mes", "Cantidad", datasetBarra,
+                            PlotOrientation.VERTICAL, false, true, false
+                    );
+                    chartBarra.setBackgroundPaint(new Color(30, 0, 60));
+                    chartBarra.getPlot().setBackgroundPaint(new Color(50, 0, 80));
+                    chartBarra.getCategoryPlot().getRenderer().setSeriesPaint(0, new Color(0, 255, 180));
+
+                    JFreeChart chartTorta = ChartFactory.createPieChart(
+                            "Distribución de Asistencias", datasetTorta, true, true, false
+                    );
+                    chartTorta.setBackgroundPaint(new Color(30, 0, 60));
+                    chartTorta.getPlot().setBackgroundPaint(new Color(50, 0, 80));
 
                     ChartPanel panelBarra = new ChartPanel(chartBarra);
                     ChartPanel panelTorta = new ChartPanel(chartTorta);
@@ -1365,7 +1395,13 @@ public class ControlDocentes {
         // Runnable para escanear UID
         Runnable escanearUID = () -> {
             new Thread(() -> {
-                SerialPort puerto = SerialPort.getCommPorts()[0];
+                SerialPort puerto = null;
+                for (SerialPort sp : SerialPort.getCommPorts()) {
+                    if (sp.getSystemPortName().equals("COM4")) {
+                        puerto = sp;
+                        break;
+                    }
+                }
                 puerto.setComPortParameters(9600, 8, 1, 0);
                 puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
 
@@ -1525,7 +1561,7 @@ public class ControlDocentes {
     }
     
     // metodo para mostrar en consola cada escaneo de tarjeta rfid
-    private static void iniciarControlRFID() {
+    /*private static void iniciarControlRFID() {
         JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
         lectorDialog.setSize(300, 150);
         lectorDialog.setLayout(new BorderLayout());
@@ -1534,7 +1570,13 @@ public class ControlDocentes {
         lectorDialog.add(mensaje, BorderLayout.CENTER);
 
         new Thread(() -> {
-            SerialPort puerto = SerialPort.getCommPorts()[0];
+            SerialPort puerto = null;
+            for (SerialPort sp : SerialPort.getCommPorts()) {
+                if (sp.getSystemPortName().equals("COM4")) {
+                    puerto = sp;
+                    break;
+                }
+            }
             puerto.setComPortParameters(9600, 8, 1, 0);
             puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
             if (puerto.openPort()) {
@@ -1553,6 +1595,117 @@ public class ControlDocentes {
                 puerto.closePort();
             }
         }).start();
+
+        lectorDialog.setLocationRelativeTo(ventana);
+        lectorDialog.setVisible(true);
+    }*/
+    
+    private static volatile boolean lectorActivo = false;
+    private static Thread hiloRFID = null;
+
+    private static void iniciarControlRFID() {
+        if (lectorActivo) {
+            JOptionPane.showMessageDialog(ventana, "El lector ya está en uso. Espera a que finalice.");
+            return;
+        }
+
+        lectorActivo = true;
+
+        JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
+        lectorDialog.setSize(350, 180);
+        lectorDialog.setLayout(new BorderLayout());
+
+        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
+        lectorDialog.add(mensaje, BorderLayout.CENTER);
+
+        JButton btnFinalizar = new JButton("Finalizar");
+        lectorDialog.add(btnFinalizar, BorderLayout.SOUTH);
+
+        AtomicBoolean continuarLectura = new AtomicBoolean(true);
+        SerialPort[] puertoRef = new SerialPort[1]; // truco para usar dentro del listener
+
+        btnFinalizar.addActionListener(e -> {
+            continuarLectura.set(false);
+            if (puertoRef[0] != null && puertoRef[0].isOpen()) {
+                puertoRef[0].closePort();
+            }
+            lectorDialog.dispose();
+            lectorActivo = false;
+            System.out.println("Escaneo RFID finalizado manualmente.");
+        });
+
+        hiloRFID = new Thread(() -> {
+            SerialPort puerto = null;
+            Scanner scanner = null;
+            boolean puertoAbierto = false;
+
+            try {
+                for (SerialPort sp : SerialPort.getCommPorts()) {
+                    if (sp.getSystemPortName().equals("COM4")) {
+                        puerto = sp;
+                        break;
+                    }
+                }
+
+                if (puerto == null) {
+                    JOptionPane.showMessageDialog(ventana, "No se encontró el puerto COM4.");
+                    lectorActivo = false;
+                    return;
+                }
+
+                puerto.setComPortParameters(9600, 8, 1, 0);
+                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+
+                if (!puerto.openPort()) {
+                    JOptionPane.showMessageDialog(ventana, "No se pudo abrir el puerto COM4.");
+                    lectorActivo = false;
+                    return;
+                }
+
+                puertoRef[0] = puerto;
+                puertoAbierto = true;
+                scanner = new Scanner(puerto.getInputStream());
+                HashSet<String> uidsLeidos = new HashSet<>();
+
+                while (continuarLectura.get() && puerto.isOpen()) {
+                    if (scanner.hasNextLine()) {
+                        String uid = scanner.nextLine().trim();
+
+                        if (!uidsLeidos.contains(uid)) {
+                            System.out.println("UID detectado: " + uid);
+                            registrarAsistencia(uid);
+                            mostrarDatosDocente(uid);
+                            uidsLeidos.add(uid);
+
+                            new java.util.Timer().schedule(new java.util.TimerTask() {
+                                @Override
+                                public void run() {
+                                    uidsLeidos.remove(uid);
+                                }
+                            }, 5000);
+                        }
+                    }
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            } finally {
+                if (scanner != null) {
+                    scanner.close();
+                }
+                if (puerto != null && puerto.isOpen()) {
+                    puerto.closePort();
+                }
+
+                if (puertoAbierto) {
+                    System.out.println("Escaneo RFID finalizado.");
+                }
+
+                lectorActivo = false;
+            }
+        });
+
+        hiloRFID.start();
 
         lectorDialog.setLocationRelativeTo(ventana);
         lectorDialog.setVisible(true);
