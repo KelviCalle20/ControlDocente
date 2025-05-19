@@ -25,6 +25,8 @@ import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 
 import java.io.File;
@@ -56,6 +58,7 @@ import org.jfree.data.general.DefaultPieDataset;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Timer;
 import java.util.TimerTask;
+import javax.swing.table.JTableHeader;
 
 public class ControlDocentes {
 
@@ -106,10 +109,17 @@ public class ControlDocentes {
 
 
         // Título
-        JLabel titulo = new JLabel("CONTROL DE DOCENTES");
+        /*JLabel titulo = new JLabel("CONTROL DE DOCENTES");
         titulo.setFont(new Font("Arial", Font.BOLD, 28));
         titulo.setForeground(Color.GREEN);
-        titulo.setBounds(340, 30, 400, 30);
+        titulo.setBounds(340, 30, 400, 30);*/
+        JLabel titulo = new JLabel("CONTROL DE DOCENTES", SwingConstants.CENTER);
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 30));
+        titulo.setForeground(new Color(0, 255, 180));
+        titulo.setBounds(300, 20, 400, 40);
+        titulo.setBorder(BorderFactory.createLineBorder(new Color(0, 255, 150), 2));
+        titulo.setOpaque(true);
+        titulo.setBackground(new Color(20, 0, 30));
 
         // Estilo común de botones
         Color azulBoton = new Color(0, 102, 204);
@@ -144,6 +154,7 @@ public class ControlDocentes {
         btnIniciarControl.addActionListener(e -> iniciarControlRFID());
         
 
+
         JButton btnSalir = new JButton("Salir");
         btnSalir.setBounds(50, 360, 200, 40);
         btnSalir.setBackground(azulBoton);
@@ -151,10 +162,32 @@ public class ControlDocentes {
         btnSalir.setFont(fuenteBoton);
         btnSalir.addActionListener(e -> System.exit(0));
 
-        modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);
+        /*modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);
         tablaAsistencia = new JTable(modeloAsistencia);
         JScrollPane scroll = new JScrollPane(tablaAsistencia);
-        scroll.setBounds(300, 120, 660, 350); // ajustado al nuevo tamaño
+        scroll.setBounds(300, 120, 660, 350); // ajustado al nuevo tamaño*/
+        
+        // === Tabla de asistencia con estilo ===
+        modeloAsistencia = new DefaultTableModel(new String[]{"Nombre", "Fecha", "Hora"}, 0);
+        tablaAsistencia = new JTable(modeloAsistencia);
+
+        tablaAsistencia.setBackground(new Color(30, 0, 50));
+        tablaAsistencia.setForeground(new Color(0, 255, 180));
+        tablaAsistencia.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        tablaAsistencia.setRowHeight(25);
+        tablaAsistencia.setGridColor(new Color(0, 255, 150));
+        tablaAsistencia.setSelectionBackground(new Color(50, 0, 70));
+        tablaAsistencia.setSelectionForeground(Color.WHITE);
+
+        JTableHeader header = tablaAsistencia.getTableHeader();
+        header.setBackground(new Color(20, 20, 40));
+        header.setForeground(new Color(0, 255, 200));
+        header.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        JScrollPane scroll = new JScrollPane(tablaAsistencia);
+        scroll.setBounds(300, 120, 660, 350);
+        scroll.getViewport().setBackground(new Color(20, 0, 30));
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(0, 255, 150), 2));
 
         fondo.add(lblLogoIzquierdo);
         fondo.add(lblLogoDerecho);
@@ -171,9 +204,10 @@ public class ControlDocentes {
     }
     
     
+    
     //metodo para desplegar opcioes de editar en pantalla
     private static void mostrarOpcionesEditar() {
-        String[] opciones = {"Eliminar Tabla", "Eliminar Registro", "Mostrar Registros", "Actualizar registro"};
+        String[] opciones = {"Mostrar Registros", "Actualizar registro", "Eliminar Tabla", "Eliminar Registro", "Eliminar Asistencia Total", "Eliminar Asistencia"};
         String seleccion = (String) JOptionPane.showInputDialog(
                 ventana,
                 "Seleccione una opción:",
@@ -185,21 +219,31 @@ public class ControlDocentes {
 
         if (seleccion != null) {
             switch (seleccion) {
+                case "Mostrar Registros":
+                    mostrarDatos();
+                    break;
+                case "Actualizar registro":
+                    actualizarRegistro();  
+                    break;
                 case "Eliminar Tabla":
                     eliminarTabla();
                     break;
                 case "Eliminar Registro":
                     eliminarRegistro();
                     break;
-                case "Actualizar registro":
-                    actualizarRegistro();  
+                case "Eliminar Asistencia Total":
+                    eliminarAsistenciaTotal();
                     break;
-                case "Mostrar Registros":
-                    mostrarDatos();
+                case "Eliminar Asistencia":
+                    eliminarAsistencia();
                     break;
+                
+                
             }
         }
     }
+    
+   
     /*
     //metodo para registrar nuevos docentes
     private static void insertarDatos() {
@@ -362,19 +406,21 @@ public class ControlDocentes {
         panelImagen.add(labelImagen, BorderLayout.CENTER);
         panelImagen.add(btnCargarImagen, BorderLayout.SOUTH);
 
+        
+        final SerialPort[] puerto = new SerialPort[1];
         // Escaneo RFID
         new Thread(() -> {
-            SerialPort puerto = null;
+            
             for(SerialPort sp : SerialPort.getCommPorts()){
                 if(sp.getSystemPortName().equals("COM4")){
-                    puerto = sp;
+                    puerto[0] = sp;
                     break;
                 }
             }
-            puerto.setComPortParameters(9600, 8, 1, 0);
-            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-            if (puerto.openPort()) {
-                Scanner scanner = new Scanner(puerto.getInputStream());
+            puerto[0].setComPortParameters(9600, 8, 1, 0);
+            puerto[0].setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+            if (puerto[0].openPort()) {
+                Scanner scanner = new Scanner(puerto[0].getInputStream());
                 while (dialogo.isVisible()) {
                     if (scanner.hasNextLine()) {
                         String codigo = scanner.nextLine().trim();
@@ -384,9 +430,19 @@ public class ControlDocentes {
                     }
                 }
                 scanner.close();
-                puerto.closePort();
+                puerto[0].closePort();
             }
         }).start();
+        
+        dialogo.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (puerto[0] != null && puerto[0].isOpen()) {
+                    puerto[0].closePort();
+                    System.out.println("Puerto cerrado al cerrar ventana.");
+                }
+            }
+        });
 
         JButton btnInsertar = new JButton("Registrar");
         btnInsertar.addActionListener(e -> {
@@ -406,6 +462,12 @@ public class ControlDocentes {
 
                 stmt.executeUpdate(); // ¡IMPORTANTE! Ejecutar la inserción
                 JOptionPane.showMessageDialog(dialogo, "Registro exitoso.");
+                
+                if (puerto[0] != null && puerto[0].isOpen()) {
+                    puerto[0].closePort();
+                    System.out.println("Puerto cerrado al registra docente.");
+                } 
+                
                 dialogo.dispose();
             } catch (SQLException ex) {
                 JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
@@ -870,31 +932,59 @@ public class ControlDocentes {
         dialogo.add(new JLabel());
         dialogo.add(btnBuscar);
 
+        
+        final SerialPort[] puerto = new SerialPort[1];
+        final Thread[] hiloEscaneo = new Thread[1];
+        final boolean[]escaneando = {false};
         Runnable escanearUID = () -> {
-            new Thread(() -> {
-                SerialPort puerto = null;
+            if (escaneando[0]) {
+                return;  // Evita escaneos múltiples
+            }
+            escaneando[0] = true;
+
+            hiloEscaneo[0] = new Thread(() -> {
                 for (SerialPort sp : SerialPort.getCommPorts()) {
                     if (sp.getSystemPortName().equals("COM4")) {
-                        puerto = sp;
+                        puerto[0] = sp;
                         break;
                     }
                 }
-                puerto.setComPortParameters(9600, 8, 1, 0);
-                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-                if (puerto.openPort()) {
-                    Scanner scanner = new Scanner(puerto.getInputStream());
-                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
-                        if (scanner.hasNextLine()) {
-                            String codigo = scanner.nextLine().trim();
-                            System.out.println("UID escaneado: " + codigo);
-                            SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
-                            break;
-                        }
-                    }
-                    scanner.close();
-                    puerto.closePort();
+
+                if (puerto[0] == null) {
+                    System.out.println("Puerto COM4 no encontrado.");
+                    escaneando[0] = false;
+                    return;
                 }
-            }).start();
+
+                puerto[0].setComPortParameters(9600, 8, 1, 0);
+                puerto[0].setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+
+                if (puerto[0].openPort()) {
+                    try (Scanner scanner = new Scanner(puerto[0].getInputStream())) {
+                        while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
+                            if (scanner.hasNextLine()) {
+                                String codigo = scanner.nextLine().trim();
+                                System.out.println("UID escaneado: " + codigo);
+                                SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
+                                break;
+                            }
+                        }
+                    } catch (Exception ex) {
+                        System.out.println("Error durante escaneo: " + ex.getMessage());
+                    } finally {
+                        if (puerto[0].isOpen()) {
+                            puerto[0].closePort();
+                            System.out.println("Puerto COM cerrado desde escanearUID");
+                        }
+                        escaneando[0] = false;
+                    }
+                } else {
+                    System.out.println("No se pudo abrir el puerto COM4");
+                    escaneando[0] = false;
+                }
+            });
+
+            hiloEscaneo[0].start();
         };
 
         escanearUID.run();
@@ -1153,7 +1243,18 @@ public class ControlDocentes {
                 btnLimpiar.addActionListener(ev -> {
                     campoCodigo.setText("");
                     resultado.dispose();
-                    escanearUID.run();
+
+                    // Cerrar puerto si está abierto
+                    if (puerto[0] != null && puerto[0].isOpen()) {
+                        try {
+                            puerto[0].closePort();
+                            System.out.println("Puerto COM cerrado desde btnLimpiar.");
+                        } catch (Exception ex) {
+                            System.err.println("Error al cerrar el puerto: " + ex.getMessage());
+                        }
+                    }
+
+                    escanearUID.run(); // Vuelve a activar el escaneo
                 });
 
                 panelBotones.add(btnLimpiar);
@@ -1171,6 +1272,20 @@ public class ControlDocentes {
         });
 
         dialogo.setLocationRelativeTo(ventana);
+        dialogo.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (puerto[0] != null && puerto[0].isOpen()) {
+                    puerto[0].closePort();
+                    System.out.println("Puerto cerrado al cerrar diálogo.");
+                }
+
+                if (hiloEscaneo[0] != null && hiloEscaneo[0].isAlive()) {
+                    hiloEscaneo[0].interrupt();
+                    System.out.println("Hilo de escaneo interrumpido.");
+                }
+            }
+        });
         dialogo.setVisible(true);
     }
     
@@ -1194,6 +1309,34 @@ public class ControlDocentes {
                 int filas = stmt.executeUpdate();
                 if (filas > 0) {
                     JOptionPane.showMessageDialog(ventana, "Registro eliminado.");
+                } else {
+                    JOptionPane.showMessageDialog(ventana, "No se encontró el registro.");
+                }
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
+            }
+        }
+    }
+    
+    private static void eliminarAsistenciaTotal() {
+        try {
+            Statement stmt = conexion.createStatement();
+            stmt.executeUpdate("DELETE FROM asistencia");
+            JOptionPane.showMessageDialog(ventana, "asistencia eliminada correctamente.");
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(ventana, "Error al eliminar la tabla: " + e.getMessage());
+        }
+    }
+    
+    private static void eliminarAsistencia() {
+        String nombre = JOptionPane.showInputDialog("Nombre del docente a eliminar:");
+        if (nombre != null) {
+            try {
+                PreparedStatement stmt = conexion.prepareStatement("DELETE FROM asistencia WHERE nombre = ?");
+                stmt.setString(1, nombre);
+                int filas = stmt.executeUpdate();
+                if (filas > 0) {
+                    JOptionPane.showMessageDialog(ventana, "asistencia eliminado.");
                 } else {
                     JOptionPane.showMessageDialog(ventana, "No se encontró el registro.");
                 }
@@ -1602,8 +1745,8 @@ public class ControlDocentes {
     
     private static volatile boolean lectorActivo = false;
     private static Thread hiloRFID = null;
-
     private static void iniciarControlRFID() {
+        final SerialPort[] puerto = new SerialPort[1];
         if (lectorActivo) {
             JOptionPane.showMessageDialog(ventana, "El lector ya está en uso. Espera a que finalice.");
             return;
@@ -1614,6 +1757,17 @@ public class ControlDocentes {
         JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
         lectorDialog.setSize(350, 180);
         lectorDialog.setLayout(new BorderLayout());
+        
+        // Agrega esta parte después de setDefaultCloseOperation:
+        lectorDialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                if (puerto[0] != null && puerto[0].isOpen()) {
+                    puerto[0].closePort();
+                    System.out.println("Puerto cerrado al cerrar ventana.");
+                }
+            }
+        });
 
         JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
         lectorDialog.add(mensaje, BorderLayout.CENTER);
@@ -1635,39 +1789,38 @@ public class ControlDocentes {
         });
 
         hiloRFID = new Thread(() -> {
-            SerialPort puerto = null;
             Scanner scanner = null;
             boolean puertoAbierto = false;
 
             try {
                 for (SerialPort sp : SerialPort.getCommPorts()) {
                     if (sp.getSystemPortName().equals("COM4")) {
-                        puerto = sp;
+                        puerto[0] = sp;
                         break;
                     }
                 }
 
-                if (puerto == null) {
+                if (puerto[0] == null) {
                     JOptionPane.showMessageDialog(ventana, "No se encontró el puerto COM4.");
                     lectorActivo = false;
                     return;
                 }
 
-                puerto.setComPortParameters(9600, 8, 1, 0);
-                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+                puerto[0].setComPortParameters(9600, 8, 1, 0);
+                puerto[0].setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
 
-                if (!puerto.openPort()) {
+                if (!puerto[0].openPort()) {
                     JOptionPane.showMessageDialog(ventana, "No se pudo abrir el puerto COM4.");
                     lectorActivo = false;
                     return;
                 }
 
-                puertoRef[0] = puerto;
+                puertoRef[0] = puerto[0];
                 puertoAbierto = true;
-                scanner = new Scanner(puerto.getInputStream());
+                scanner = new Scanner(puerto[0].getInputStream());
                 HashSet<String> uidsLeidos = new HashSet<>();
 
-                while (continuarLectura.get() && puerto.isOpen()) {
+                while (continuarLectura.get() && puerto[0].isOpen()) {
                     if (scanner.hasNextLine()) {
                         String uid = scanner.nextLine().trim();
 
@@ -1693,8 +1846,8 @@ public class ControlDocentes {
                 if (scanner != null) {
                     scanner.close();
                 }
-                if (puerto != null && puerto.isOpen()) {
-                    puerto.closePort();
+                if (puerto[0] != null && puerto[0].isOpen()) {
+                    puerto[0].closePort();
                 }
 
                 if (puertoAbierto) {
@@ -1726,7 +1879,7 @@ public class ControlDocentes {
                 JOptionPane.showMessageDialog(ventana, "Hola " + nombre + ", ¡Bienvenido!");
 
                 // Agregar a tabla en tiempo real
-                modeloAsistencia.addRow(new String[]{fecha, hora, nombre});
+                modeloAsistencia.addRow(new String[]{nombre, fecha, hora});
 
                 // Aquí puedes insertar en una tabla de asistencia si la tienes en la base
             } else {
