@@ -56,9 +56,11 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DefaultPieDataset;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.Timer;
-import java.util.TimerTask;
 import javax.swing.table.JTableHeader;
+import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.labels.StandardPieSectionLabelGenerator;
+import org.jfree.chart.plot.PiePlot;
+import org.jfree.chart.ui.RectangleEdge;
 
 public class ControlDocentes {
 
@@ -80,17 +82,18 @@ public class ControlDocentes {
     private static void crearVentana() {
         ventana = new JFrame("Control de Docentes");
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        ventana.setSize(1000, 600); // Aumentamos el tamaño de la ventana
+        ventana.setSize(1050, 600); // Aumentamos el tamaño de la ventan
         ventana.setLocationRelativeTo(null);
         ventana.setLayout(null);
 
         // Fondo para la ventana principal
-        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente.jpg");
+        ImageIcon originalIcon = new ImageIcon("src/imagenes/menu_docente2.gif");
         Image imagenOriginal = originalIcon.getImage();
-        Image imagenEscalada = imagenOriginal.getScaledInstance(1000, 600, Image.SCALE_SMOOTH);
-        ImageIcon iconoEscalado = new ImageIcon(imagenEscalada);
+        //Image imagenEscalada = imagenOriginal.getScaledInstance(1050, 600, Image.SCALE_SMOOTH);
+        
+        ImageIcon iconoEscalado = new ImageIcon(imagenOriginal);
         JLabel fondo = new JLabel(iconoEscalado);
-        fondo.setBounds(0, 0, 1000, 600);
+        fondo.setBounds(0, 0, 1050, 600);
         fondo.setLayout(null);
 
         // Logo izquierdo escalado
@@ -153,10 +156,16 @@ public class ControlDocentes {
         btnIniciarControl.setFont(fuenteBoton);
         btnIniciarControl.addActionListener(e -> iniciarControlRFID());
         
+        JButton btnLogin = new JButton("Perfil Docente");
+        btnLogin.setBounds(50, 360, 200, 40);
+        btnLogin.setBackground(azulBoton);
+        btnLogin.setForeground(Color.WHITE);
+        btnLogin.setFont(fuenteBoton);
+        btnLogin.addActionListener(e -> mostrarVentanaLogin());
 
 
         JButton btnSalir = new JButton("Salir");
-        btnSalir.setBounds(50, 360, 200, 40);
+        btnSalir.setBounds(50, 420, 200, 40);
         btnSalir.setBackground(azulBoton);
         btnSalir.setForeground(Color.WHITE);
         btnSalir.setFont(fuenteBoton);
@@ -196,6 +205,7 @@ public class ControlDocentes {
         fondo.add(btnVerReporte);
         fondo.add(btnEditar);
         fondo.add(btnIniciarControl);
+        fondo.add(btnLogin);
         fondo.add(btnSalir);
         fondo.add(scroll);
 
@@ -1147,18 +1157,35 @@ public class ControlDocentes {
                     DefaultCategoryDataset datasetBarra = new DefaultCategoryDataset();
                     DefaultPieDataset<String> datasetTorta = new DefaultPieDataset<>();
 
+                    /*
+                    PASADO FUNCIONAL
                     for (Map.Entry<String, Integer> entry : conteoPorMes.entrySet()) {
-                        datasetBarra.addValue(entry.getValue(), "Asistencias", entry.getKey());
-                        datasetTorta.setValue(entry.getKey(), entry.getValue());
+                        //datasetBarra.addValue(entry.getValue(), "Asistencias", entry.getKey());
+                        //datasetTorta.setValue(entry.getKey(), entry.getValue());
+                    }
+                    */
+                    
+                    //FUNCION ACTUALIZADA BARRA-TORTA
+                    String[] nombresMeses = new DateFormatSymbols().getMonths();
+                    int mesActual = Calendar.getInstance().get(Calendar.MONTH);
+                    
+                    for(int i = 0; i<= mesActual; i++){
+                        String mesNombre = nombresMeses[i];
+                        int cantidad = conteoPorMes.getOrDefault(mesNombre, 0);
+                        datasetBarra.addValue(cantidad, "Asistencias", mesNombre);
+                        datasetTorta.setValue(mesNombre, cantidad);
                     }
 
                     /*
+                     PASADO FUNCIONAL
                     JFreeChart chartBarra = ChartFactory.createBarChart(
                             "Asistencias por Mes", "Mes", "Cantidad", datasetBarra,
                             PlotOrientation.VERTICAL, false, true, false);
                     JFreeChart chartTorta = ChartFactory.createPieChart(
                             "Distribución de Asistencias", datasetTorta, true, true, false);
                     */
+                    
+                    //BARRA ACTUALIZADA
                     JFreeChart chartBarra = ChartFactory.createBarChart(
                             "Asistencias por Mes", "Mes", "Cantidad", datasetBarra,
                             PlotOrientation.VERTICAL, false, true, false
@@ -1166,12 +1193,25 @@ public class ControlDocentes {
                     chartBarra.setBackgroundPaint(new Color(30, 0, 60));
                     chartBarra.getPlot().setBackgroundPaint(new Color(50, 0, 80));
                     chartBarra.getCategoryPlot().getRenderer().setSeriesPaint(0, new Color(0, 255, 180));
-
+   
+                    NumberAxis ejeY = (NumberAxis)chartBarra.getCategoryPlot().getRangeAxis();
+                    ejeY.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
+                    int maximo = conteoPorMes.values().stream().max(Integer::compare).orElse(1);
+                    ejeY.setRange(0, Math.max(5, maximo + 1));
+                    
+                    //TORTA ACTUALIZADA
                     JFreeChart chartTorta = ChartFactory.createPieChart(
                             "Distribución de Asistencias", datasetTorta, true, true, false
                     );
                     chartTorta.setBackgroundPaint(new Color(30, 0, 60));
-                    chartTorta.getPlot().setBackgroundPaint(new Color(50, 0, 80));
+                    
+                    PiePlot plot = (PiePlot)chartTorta.getPlot();
+                    plot.setBackgroundPaint(new Color(50, 0, 80));
+                    plot.setLabelGenerator(new StandardPieSectionLabelGenerator("{0}: {1} asistencia"));
+                    plot.setLabelBackgroundPaint(new Color(20, 0, 30));
+                    plot.setLabelPaint(Color.WHITE);
+                    chartTorta.getLegend().setPosition(RectangleEdge.RIGHT);
+                    //chartTorta.getPlot().setBackgroundPaint(new Color(50, 0, 80));
 
                     ChartPanel panelBarra = new ChartPanel(chartBarra);
                     ChartPanel panelTorta = new ChartPanel(chartTorta);
@@ -1180,7 +1220,7 @@ public class ControlDocentes {
                     panelGraficos.add(panelTorta);
 
                     JDialog ventanaGrafico = new JDialog(resultado, "Estadísticas", true);
-                    ventanaGrafico.setSize(900, 450);
+                    ventanaGrafico.setSize(1600, 900);//DIMENSIONES ACTUALIZADA
                     ventanaGrafico.setLayout(new BorderLayout());
                     ventanaGrafico.add(panelGraficos, BorderLayout.CENTER);
                     ventanaGrafico.setLocationRelativeTo(resultado);
@@ -1835,7 +1875,7 @@ public class ControlDocentes {
                                 public void run() {
                                     uidsLeidos.remove(uid);
                                 }
-                            }, 5000);
+                            }, 2000);
                         }
                     }
                 }
@@ -1918,7 +1958,308 @@ public class ControlDocentes {
             JOptionPane.showMessageDialog(ventana, "Error al consultar o registrar asistencia: " + e.getMessage());
         }
     }
+    
+    //PERFIL DEL DECENTE
+    private static SerialPort puertoLogin;
+    private static void mostrarVentanaLogin() {
+        
+        JDialog loginDialog = new JDialog(ventana, "PERFI DOCENTE", true);
+        loginDialog.setSize(400, 300);
+        loginDialog.setLayout(new BorderLayout());
+        loginDialog.setLocationRelativeTo(ventana);
+        loginDialog.getContentPane().setBackground(new Color(30, 0, 50));
 
-  
+        // Colores y estilo
+        Color fondoOscuro = new Color(30, 0, 50);
+        Color textoNeon = new Color(0, 255, 180);
+        Color bordeNeon = new Color(0, 255, 150);
+        Color fondoCampo = new Color(40, 0, 60);
+        Color botonFondo = new Color(40, 40, 60);
+        Color botonTexto = new Color(0, 255, 200);
+
+        // === Logo superior ===
+        JLabel lblLogo = new JLabel();
+        lblLogo.setHorizontalAlignment(SwingConstants.CENTER);
+        lblLogo.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        try {
+            ImageIcon icono = new ImageIcon("src/imagenes/usb_logo.png");
+            Image imgEscalada = icono.getImage().getScaledInstance(160, 130, Image.SCALE_SMOOTH);
+            lblLogo.setIcon(new ImageIcon(imgEscalada));
+        } catch (Exception e) {
+            lblLogo.setText("LOGO");
+            lblLogo.setForeground(textoNeon);
+        }
+
+        // === Campos RFID y Nombre ===
+        JPanel panelCentro = new JPanel(new GridLayout(2, 2, 10, 10));
+        panelCentro.setBackground(fondoOscuro);
+        panelCentro.setBorder(BorderFactory.createEmptyBorder(0, 20, 10, 20));
+
+        JLabel lblRFID = new JLabel("Código RFID:");
+        JLabel lblNombre = new JLabel("Nombre:");
+
+        JTextField txtRFID = new JTextField();
+        txtRFID.setEditable(false);
+        JTextField txtNombre = new JTextField();
+        txtNombre.setEditable(false);
+
+        for (JLabel label : new JLabel[]{lblRFID, lblNombre}) {
+            label.setForeground(textoNeon);
+            label.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        }
+
+        for (JTextField campo : new JTextField[]{txtRFID, txtNombre}) {
+            campo.setBackground(fondoCampo);
+            campo.setForeground(textoNeon);
+            campo.setCaretColor(Color.WHITE);
+            campo.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+            campo.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        }
+
+        panelCentro.add(lblRFID);
+        panelCentro.add(txtRFID);
+        panelCentro.add(lblNombre);
+        panelCentro.add(txtNombre);
+
+        // === Botón Iniciar Sesión ===
+        JButton btnIniciarSesion = new JButton("Iniciar Perfil");
+        btnIniciarSesion.setEnabled(false);
+        btnIniciarSesion.setBackground(botonFondo);
+        btnIniciarSesion.setForeground(botonTexto);
+        btnIniciarSesion.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+        JPanel panelInferior = new JPanel();
+        panelInferior.setBackground(fondoOscuro);
+        panelInferior.add(btnIniciarSesion);
+
+        // === Escaneo RFID ===
+        new Thread(() -> {
+            puertoLogin = null;
+            for (SerialPort sp : SerialPort.getCommPorts()) {
+                if (sp.getSystemPortName().equals("COM4")) {
+                    puertoLogin = sp;
+                    break;
+                }
+            }
+            if (puertoLogin == null) {
+                return;
+            }
+
+            puertoLogin.setComPortParameters(9600, 8, 1, 0);
+            puertoLogin.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+            if (puertoLogin.openPort()) {
+                try (Scanner scanner = new Scanner(puertoLogin.getInputStream())) {
+                    while (loginDialog.isVisible()) {
+                        if (scanner.hasNextLine()) {
+                            String codigo = scanner.nextLine().trim();
+                            SwingUtilities.invokeLater(() -> {
+                                txtRFID.setText(codigo);
+                                mostrarNombreDocente(codigo, txtNombre, btnIniciarSesion);
+                            });
+                            break;
+                        }
+                    }
+                }
+                puertoLogin.closePort();
+            }
+        }).start();
+
+        // === Acción iniciar sesión ===
+        btnIniciarSesion.addActionListener(e -> {
+            loginDialog.dispose();
+            mostrarPerfilDocente(txtRFID.getText());
+        });
+
+        // === Cerrar COM4 al cerrar ventana ===
+        loginDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        loginDialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                for (SerialPort sp : SerialPort.getCommPorts()) {
+                    if (sp.getSystemPortName().equals("COM4") && sp.isOpen()) {
+                        sp.closePort();
+                        System.out.println("Puerto COM4 cerrado al cerrar Login.");
+                    }
+                    if (puertoLogin != null && puertoLogin.isOpen()) {
+                        puertoLogin.closePort();
+                        System.out.println("Puerto COM4 cerrado al cerrar Login.");
+                    }
+                }
+            }
+        });
+        
+
+        loginDialog.add(lblLogo, BorderLayout.NORTH);
+        loginDialog.add(panelCentro, BorderLayout.CENTER);
+        loginDialog.add(panelInferior, BorderLayout.SOUTH);
+        loginDialog.setVisible(true);
+    }
+    
+    
+    private static void mostrarNombreDocente(String uid, JTextField txtNombre, JButton btnIniciar) {
+        try {
+            PreparedStatement stmt = conexion.prepareStatement("SELECT nombre FROM docentes WHERE cod_docente = ?");
+            stmt.setString(1, uid);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                txtNombre.setText(rs.getString("nombre"));
+                btnIniciar.setEnabled(true);
+            } else {
+                txtNombre.setText("No registrado");
+                btnIniciar.setEnabled(false);
+            }
+            stmt.close();
+        } catch (SQLException e) {
+            txtNombre.setText("Error");
+        }
+    }
+    
+    private static void mostrarPerfilDocente(String codigo) {
+        try {
+            PreparedStatement stmt = conexion.prepareStatement("SELECT * FROM docentes WHERE cod_docente = ?");
+            stmt.setString(1, codigo);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                String nombreCompleto = rs.getString("nombre") + " "
+                        + rs.getString("apellido_paterno") + " "
+                        + rs.getString("apellido_materno");
+                String materia = rs.getString("materia");
+                String aula = rs.getString("aula");
+                String turno = rs.getString("turno");
+                String entrada = rs.getString("hora_entrada");
+                String salida = rs.getString("hora_salida");
+
+                Color fondoOscuro = new Color(30, 0, 50);
+                Color textoNeon = new Color(0, 255, 180);
+                Color bordeNeon = new Color(0, 255, 150);
+
+                // === Buscar imagen del docente ===
+                ImageIcon foto = null;
+                for (String ext : new String[]{".jpg", ".png", ".jpeg"}) {
+                    File img = new File("src/fotos_docentes", codigo + ext);
+                    if (img.exists()) {
+                        foto = new ImageIcon(new ImageIcon(img.getAbsolutePath())
+                                .getImage().getScaledInstance(90, 90, Image.SCALE_SMOOTH));
+                        break;
+                    }
+
+                }
+                
+
+                // === Ventana principal ===
+                JDialog perfil = new JDialog(ventana, "Perfil del Docente", true);
+                perfil.setSize(600, 600);
+                perfil.setLayout(new BorderLayout());
+                perfil.setLocationRelativeTo(ventana);
+                perfil.getContentPane().setBackground(fondoOscuro);
+
+                // === Panel top con botón cerrar sesión ===
+                JPanel panelTop = new JPanel(new BorderLayout());
+                panelTop.setBackground(fondoOscuro);
+
+                JButton btnCerrarSesion = new JButton("Cerrar Sesión");
+                btnCerrarSesion.setBackground(new Color(40, 40, 60));
+                btnCerrarSesion.setForeground(new Color(0, 255, 200));
+                btnCerrarSesion.setFont(new Font("Segoe UI", Font.BOLD, 13));
+                btnCerrarSesion.setFocusPainted(false);
+                btnCerrarSesion.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+                AtomicBoolean continuarLectura = new AtomicBoolean(true);
+                SerialPort[] puertoRef = new SerialPort[1]; // truco para usar dentro del listener
+                btnCerrarSesion.addActionListener(e -> {
+                    continuarLectura.set(false);
+                    if (puertoRef[0] != null && puertoRef[0].isOpen()) {
+                        puertoRef[0].closePort();
+                    }
+                    perfil.dispose();
+                    lectorActivo = false;
+                    System.out.println("Escaneo RFID finalizado manualmente.");
+                    mostrarVentanaLogin();
+                });
+
+                panelTop.add(btnCerrarSesion, BorderLayout.EAST);
+                perfil.add(panelTop, BorderLayout.PAGE_START);
+
+                // === Foto docente ===
+                JLabel lblFoto = new JLabel(foto);
+                lblFoto.setHorizontalAlignment(SwingConstants.CENTER);
+                lblFoto.setBorder(BorderFactory.createLineBorder(bordeNeon, 2));
+                lblFoto.setOpaque(true);
+                lblFoto.setBackground(new Color(10, 10, 20));
+                perfil.add(lblFoto, BorderLayout.NORTH);
+
+                // === Datos del docente ===
+                JTextArea areaDatos = new JTextArea();
+                areaDatos.setEditable(false);
+                areaDatos.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+                areaDatos.setBackground(new Color(40, 0, 60));
+                areaDatos.setForeground(textoNeon);
+                areaDatos.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
+                areaDatos.setText(
+                        "Nombre: " + nombreCompleto + "\n"
+                        + "Materia: " + materia + "\n"
+                        + "Aula: " + aula + "\n"
+                        + "Turno: " + turno + "\n"
+                        + "Hora Entrada: " + entrada + "\n"
+                        + "Hora Salida: " + salida
+                );
+
+                // === Panel central con datos y tabla ===
+                JPanel panelCentro = new JPanel(new BorderLayout());
+                panelCentro.setBackground(fondoOscuro);
+                panelCentro.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+                panelCentro.add(areaDatos, BorderLayout.NORTH);
+
+                // === Tabla de alumnos ===
+                DefaultTableModel modelo = new DefaultTableModel();
+                modelo.addColumn("Nro");
+                modelo.addColumn("Nombre");
+                modelo.addColumn("Apellido Paterno");
+                modelo.addColumn("Apellido Materno");
+
+                PreparedStatement stmtAlumnos = conexion.prepareStatement(
+                        "SELECT nombre, apellido_paterno, apellido_materno FROM alumnos WHERE cod_docente = ?"
+                );
+                stmtAlumnos.setString(1, codigo);
+                ResultSet rsAlumnos = stmtAlumnos.executeQuery();
+
+                int nro = 1;
+                while (rsAlumnos.next()) {
+                    modelo.addRow(new Object[]{
+                        nro++,
+                        rsAlumnos.getString("nombre"),
+                        rsAlumnos.getString("apellido_paterno"),
+                        rsAlumnos.getString("apellido_materno")
+                    });
+                }
+
+                JTable tabla = new JTable(modelo);
+                tabla.setBackground(new Color(40, 0, 60));
+                tabla.setForeground(textoNeon);
+                tabla.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                tabla.setRowHeight(28);
+                tabla.setGridColor(bordeNeon);
+
+                JScrollPane scrollTabla = new JScrollPane(tabla);
+                scrollTabla.getViewport().setBackground(new Color(20, 0, 30));
+                scrollTabla.setBorder(BorderFactory.createTitledBorder(
+                        BorderFactory.createLineBorder(bordeNeon, 1),
+                        "Lista de Alumnos",
+                        0, 0,
+                        new Font("Segoe UI", Font.BOLD, 13),
+                        textoNeon
+                ));
+
+                panelCentro.add(scrollTabla, BorderLayout.CENTER);
+                perfil.add(panelCentro, BorderLayout.CENTER);
+
+                perfil.setVisible(true);
+            } else {
+                JOptionPane.showMessageDialog(ventana, "No se encontró ningún docente con este UID.");
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(ventana, "Error al mostrar perfil: " + e.getMessage());
+        }
+    }
 }
 
