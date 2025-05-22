@@ -5,7 +5,7 @@ package com.mycompany.controldocentes.notificacionesGmail;
  * @author zatan
  */
 
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.IOException;
 import java.util.Properties;
 import javax.mail.*;
@@ -16,11 +16,13 @@ public class EmailUtil {
     private static Properties config = new Properties();
 
     static {
-        try {
-            //config.load(new FileInputStream("config.properties"));
-            config.load(EmailUtil.class.getClassLoader().getResourceAsStream("config.properties"));
+        try (InputStream is = EmailUtil.class.getClassLoader().getResourceAsStream("config.properties")) {
+            if (is == null) {
+                throw new RuntimeException("¡No se encontró config.properties en el classpath! Verifica la ruta exacta.");
+            }
+            config.load(is);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Error al cargar config.properties", e);
         }
     }
 
