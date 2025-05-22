@@ -23,6 +23,7 @@ import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import com.mycompany.controldocentes.notificacionesGmail.EmailUtil;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.WindowAdapter;
@@ -471,6 +472,8 @@ public class ControlDocentes {
                 stmt.setString(10, (String) comboTurno.getSelectedItem()); // Turno
 
                 stmt.executeUpdate(); // ¡IMPORTANTE! Ejecutar la inserción
+                EmailUtil.enviarCorreo("Nuevo Registro",
+                        "Se ha registrado al docente: " + campos[1].getText() + " " + campos[2].getText());
                 JOptionPane.showMessageDialog(dialogo, "Registro exitoso.");
                 
                 if (puerto[0] != null && puerto[0].isOpen()) {
