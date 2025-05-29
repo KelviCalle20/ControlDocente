@@ -45,6 +45,8 @@ import java.util.HashSet;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import javax.imageio.ImageIO;
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -83,7 +85,7 @@ public class ControlDocentes {
     private static void crearVentana() {
         ventana = new JFrame("Control de Docentes");
         ventana.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        ventana.setSize(1050, 600); // Aumentamos el tamaño de la ventan
+        ventana.setSize(1920, 1080); // Aumentamos el tamaño de la ventana      1050x600
         ventana.setLocationRelativeTo(null);
         ventana.setLayout(null);
 
@@ -94,7 +96,7 @@ public class ControlDocentes {
         
         ImageIcon iconoEscalado = new ImageIcon(imagenOriginal);
         JLabel fondo = new JLabel(iconoEscalado);
-        fondo.setBounds(0, 0, 1050, 600);
+        fondo.setBounds(0, 0, 1920, 1080);
         fondo.setLayout(null);
 
         // Logo izquierdo escalado
@@ -102,14 +104,14 @@ public class ControlDocentes {
         Image imgIzqEscalada = logoIzqOriginal.getImage().getScaledInstance(150, 75, Image.SCALE_SMOOTH);
         ImageIcon logoIzqEscalado = new ImageIcon(imgIzqEscalada);
         JLabel lblLogoIzquierdo = new JLabel(logoIzqEscalado);
-        lblLogoIzquierdo.setBounds(20, 10, 150, 75);
+        lblLogoIzquierdo.setBounds(30, 20, 180, 90);//20, 10, 150, 75
 
         // Logo derecho escalado
         ImageIcon logoDerOriginal = new ImageIcon("src/imagenes/ACN_logo.png");
         Image imgDerEscalada = logoDerOriginal.getImage().getScaledInstance(150, 75, Image.SCALE_SMOOTH);
         ImageIcon logoDerEscalado = new ImageIcon(imgDerEscalada);
         JLabel lblLogoDerecho = new JLabel(logoDerEscalado);
-        lblLogoDerecho.setBounds(850, 10, 130, 75);
+        lblLogoDerecho.setBounds(1700, 20, 180, 90);//850, 10, 130, 75
 
 
         // Título
@@ -118,47 +120,47 @@ public class ControlDocentes {
         titulo.setForeground(Color.GREEN);
         titulo.setBounds(340, 30, 400, 30);*/
         JLabel titulo = new JLabel("CONTROL DE DOCENTES", SwingConstants.CENTER);
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 30));
+        titulo.setFont(new Font("Segoe UI", Font.BOLD, 48));
         titulo.setForeground(new Color(0, 255, 180));
-        titulo.setBounds(300, 20, 400, 40);
+        titulo.setBounds(610, 30, 700, 60);//300, 20, 400, 40
         titulo.setBorder(BorderFactory.createLineBorder(new Color(0, 255, 150), 2));
         titulo.setOpaque(true);
         titulo.setBackground(new Color(20, 0, 30));
 
         // Estilo común de botones
         Color azulBoton = new Color(0, 102, 204);
-        Font fuenteBoton = new Font("Arial", Font.BOLD, 14);
+        Font fuenteBoton = new Font("Arial", Font.BOLD, 22);
 
         JButton btnRegistrar = new JButton("Registrar");
-        btnRegistrar.setBounds(50, 120, 200, 40);
+        btnRegistrar.setBounds(100, 200, 320, 60);//50, 120, 200, 40
         btnRegistrar.setBackground(azulBoton);
         btnRegistrar.setForeground(Color.WHITE);
         btnRegistrar.setFont(fuenteBoton);
         btnRegistrar.addActionListener(e -> insertarDatos());
 
         JButton btnVerReporte = new JButton("Ver Reporte");
-        btnVerReporte.setBounds(50, 180, 200, 40);
+        btnVerReporte.setBounds(100, 290, 320, 60);//50, 180, 200, 40
         btnVerReporte.setBackground(azulBoton);
         btnVerReporte.setForeground(Color.WHITE);
         btnVerReporte.setFont(fuenteBoton);
         btnVerReporte.addActionListener(e -> mostrarReporte());
 
         JButton btnEditar = new JButton("Editar");
-        btnEditar.setBounds(50, 240, 200, 40);
+        btnEditar.setBounds(100, 380, 320, 60);//50, 240, 200, 40
         btnEditar.setBackground(azulBoton);
         btnEditar.setForeground(Color.WHITE);
         btnEditar.setFont(fuenteBoton);
         btnEditar.addActionListener(e -> mostrarOpcionesEditar());
 
         JButton btnIniciarControl = new JButton("Iniciar Control");
-        btnIniciarControl.setBounds(50, 300, 200, 40);
+        btnIniciarControl.setBounds(100, 470, 320, 60);//50, 300, 200, 40
         btnIniciarControl.setBackground(azulBoton);
         btnIniciarControl.setForeground(Color.WHITE);
         btnIniciarControl.setFont(fuenteBoton);
         btnIniciarControl.addActionListener(e -> iniciarControlRFID());
         
         JButton btnLogin = new JButton("Perfil Docente");
-        btnLogin.setBounds(50, 360, 200, 40);
+        btnLogin.setBounds(100, 560, 320, 60);//50, 360, 200, 40
         btnLogin.setBackground(azulBoton);
         btnLogin.setForeground(Color.WHITE);
         btnLogin.setFont(fuenteBoton);
@@ -166,16 +168,12 @@ public class ControlDocentes {
 
 
         JButton btnSalir = new JButton("Salir");
-        btnSalir.setBounds(50, 420, 200, 40);
+        btnSalir.setBounds(100, 650, 320, 60);//50, 420, 200, 40
         btnSalir.setBackground(azulBoton);
         btnSalir.setForeground(Color.WHITE);
         btnSalir.setFont(fuenteBoton);
         btnSalir.addActionListener(e -> System.exit(0));
 
-        /*modeloAsistencia = new DefaultTableModel(new String[]{"Fecha", "Hora", "Nombre"}, 0);
-        tablaAsistencia = new JTable(modeloAsistencia);
-        JScrollPane scroll = new JScrollPane(tablaAsistencia);
-        scroll.setBounds(300, 120, 660, 350); // ajustado al nuevo tamaño*/
         
         // === Tabla de asistencia con estilo ===
         modeloAsistencia = new DefaultTableModel(new String[]{"Nombre", "Fecha", "Hora"}, 0);
@@ -183,8 +181,8 @@ public class ControlDocentes {
 
         tablaAsistencia.setBackground(new Color(30, 0, 50));
         tablaAsistencia.setForeground(new Color(0, 255, 180));
-        tablaAsistencia.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        tablaAsistencia.setRowHeight(25);
+        tablaAsistencia.setFont(new Font("Segoe UI", Font.PLAIN, 16));
+        tablaAsistencia.setRowHeight(35);
         tablaAsistencia.setGridColor(new Color(0, 255, 150));
         tablaAsistencia.setSelectionBackground(new Color(50, 0, 70));
         tablaAsistencia.setSelectionForeground(Color.WHITE);
@@ -195,7 +193,7 @@ public class ControlDocentes {
         header.setFont(new Font("Segoe UI", Font.BOLD, 14));
 
         JScrollPane scroll = new JScrollPane(tablaAsistencia);
-        scroll.setBounds(300, 120, 660, 350);
+        scroll.setBounds(500, 150, 1300, 700);//300, 120, 660, 350
         scroll.getViewport().setBackground(new Color(20, 0, 30));
         scroll.setBorder(BorderFactory.createLineBorder(new Color(0, 255, 150), 2));
 
@@ -254,66 +252,6 @@ public class ControlDocentes {
         }
     }
     
-   
-    /*
-    //metodo para registrar nuevos docentes
-    private static void insertarDatos() {
-        JDialog dialogo = new JDialog(ventana, "Registrarse", true);
-        dialogo.setLayout(new GridLayout(11, 2, 5, 5));
-
-        String[] etiquetas = {"Código Docente (escanear TJ):", "Nombre:", "Apellido Paterno:", "Apellido Materno:",
-            "Hora Entrada:", "Hora Salida:", "Cantidad Alumnado:", "Materia:", "Aula:", "Turno:"};
-        JTextField[] campos = new JTextField[10];
-
-        for (int i = 0; i < 10; i++) {
-            dialogo.add(new JLabel(etiquetas[i]));
-            campos[i] = new JTextField();
-            campos[i].setEditable(i != 0);
-            dialogo.add(campos[i]);
-        }
-        // con este THREAD hacemos el funcionamiento del escaneo de tarjeta rfid
-        new Thread(() -> {
-            SerialPort puerto = SerialPort.getCommPorts()[0];
-            puerto.setComPortParameters(9600, 8, 1, 0);
-            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-            if (puerto.openPort()) {
-                Scanner scanner = new Scanner(puerto.getInputStream());
-                while (dialogo.isVisible()) {
-                    if (scanner.hasNextLine()) {
-                        String codigo = scanner.nextLine().trim();
-                        System.out.println("tarjeta leída: " + codigo);
-                        SwingUtilities.invokeLater(() -> campos[0].setText(codigo));
-                        break;
-                    }
-                }
-                scanner.close();
-                puerto.closePort();
-            }
-        }).start();
-
-        JButton btnInsertar = new JButton("registrar");
-        btnInsertar.addActionListener(e -> {
-            try (PreparedStatement stmt = conexion.prepareStatement(
-                    "INSERT INTO docentes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-                for (int i = 0; i < 10; i++) {
-                    stmt.setString(i + 1, campos[i].getText());
-                }
-                stmt.executeUpdate();
-                JOptionPane.showMessageDialog(dialogo, "registro exitoso.");
-                dialogo.dispose();
-            } catch (SQLException ex) {
-                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
-            }
-        });
-
-        dialogo.add(new JLabel());
-        dialogo.add(btnInsertar);
-        dialogo.pack();
-        dialogo.setLocationRelativeTo(ventana);
-        dialogo.setVisible(true);
-    }
-    */
-   
     private static void insertarDatos() {
         JDialog dialogo = new JDialog(ventana, "Registrarse", true);
         dialogo.setLayout(new BorderLayout());
@@ -563,321 +501,6 @@ public class ControlDocentes {
         }
         return horas.toArray(new String[0]);
     }
-    
-    
-    /*private static void mostrarReporte() {
-        JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
-        dialogo.setLayout(new GridLayout(4, 2, 5, 5));
-        dialogo.setSize(400, 200);
-
-        // Colores neón
-        Color fondoNeon = new Color(30, 0, 60);
-        Color textoNeon = new Color(0, 255, 180);
-        Color bordeNeon = new Color(150, 0, 255);
-
-        dialogo.getContentPane().setBackground(fondoNeon);
-
-        JTextField campoCodigo = new JTextField();
-        campoCodigo.setEditable(false);
-
-        JTextField campoAnio = new JTextField();
-
-        String[] meses = {
-            "Seleccionar mes...", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-        };
-        JComboBox<String> comboMes = new JComboBox<>(meses);
-
-        JLabel lbl1 = new JLabel("Código RFID del docente (opcional):");
-        JLabel lbl2 = new JLabel("Mes (opcional):");
-        JLabel lbl3 = new JLabel("Año (ej. 2025, obligatorio si hay mes):");
-
-        // Aplicar estilos a labels
-        for (JLabel label : new JLabel[]{lbl1, lbl2, lbl3}) {
-            label.setForeground(textoNeon);
-            label.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        }
-
-        // Aplicar estilos a campos de texto
-        for (JTextField campo : new JTextField[]{campoCodigo, campoAnio}) {
-            campo.setBackground(new Color(40, 0, 60));
-            campo.setForeground(textoNeon);
-            campo.setCaretColor(Color.WHITE);
-            campo.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
-            campo.addFocusListener(new FocusAdapter() {
-                @Override
-                public void focusGained(FocusEvent e) {
-                    campo.setBorder(BorderFactory.createLineBorder(Color.MAGENTA, 2));
-                }
-
-                @Override
-                public void focusLost(FocusEvent e) {
-                    campo.setBorder(BorderFactory.createLineBorder(bordeNeon, 1));
-                }
-            });
-        }
-
-        comboMes.setBackground(new Color(50, 0, 80));
-        comboMes.setForeground(textoNeon);
-        comboMes.setFont(new Font("Segoe UI", Font.BOLD, 13));
-
-        JButton btnBuscar = new JButton("Buscar");
-        btnBuscar.setBackground(bordeNeon);
-        btnBuscar.setForeground(Color.BLACK);
-        btnBuscar.setFocusPainted(false);
-
-        dialogo.add(lbl1);
-        dialogo.add(campoCodigo);
-        dialogo.add(lbl2);
-        dialogo.add(comboMes);
-        dialogo.add(lbl3);
-        dialogo.add(campoAnio);
-        dialogo.add(new JLabel());
-        dialogo.add(btnBuscar);
-
-        Runnable escanearUID = () -> {
-            new Thread(() -> {
-                SerialPort puerto = SerialPort.getCommPorts()[0];
-                puerto.setComPortParameters(9600, 8, 1, 0);
-                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-                if (puerto.openPort()) {
-                    Scanner scanner = new Scanner(puerto.getInputStream());
-                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
-                        if (scanner.hasNextLine()) {
-                            String codigo = scanner.nextLine().trim();
-                            System.out.println("UID escaneado: " + codigo);
-                            SwingUtilities.invokeLater(() -> campoCodigo.setText(codigo));
-                            break;
-                        }
-                    }
-                    scanner.close();
-                    puerto.closePort();
-                }
-            }).start();
-        };
-
-        escanearUID.run();
-
-        campoCodigo.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            boolean escaneando = false;
-
-            private void reactivarSiVacio() {
-                if (campoCodigo.getText().trim().isEmpty() && !escaneando) {
-                    escaneando = true;
-                    escanearUID.run();
-                    new javax.swing.Timer(1000, evt -> escaneando = false).start();
-                }
-            }
-
-            public void insertUpdate(javax.swing.event.DocumentEvent e) {
-                reactivarSiVacio();
-            }
-
-            public void removeUpdate(javax.swing.event.DocumentEvent e) {
-                reactivarSiVacio();
-            }
-
-            public void changedUpdate(javax.swing.event.DocumentEvent e) {
-            }
-        });
-
-        btnBuscar.addActionListener(e -> {
-            String codigo = campoCodigo.getText().trim();
-            int mes = comboMes.getSelectedIndex();
-            String anio = campoAnio.getText().trim();
-
-            if (mes > 0 && anio.isEmpty()) {
-                JOptionPane.showMessageDialog(dialogo, "Debe ingresar el año si selecciona un mes.");
-                return;
-            }
-
-            if (mes == 0 && anio.isEmpty()) {
-                JOptionPane.showMessageDialog(dialogo, "Debe ingresar al menos el año o el año y el mes.");
-                return;
-            }
-
-            try {
-                StringBuilder sql = new StringBuilder("SELECT uid, nombre, fecha FROM asistencia WHERE 1=1");
-                if (!codigo.isEmpty()) {
-                    sql.append(" AND uid = ?");
-                }
-                if (!anio.isEmpty()) {
-                    sql.append(" AND YEAR(fecha) = ?");
-                }
-                if (mes > 0) {
-                    sql.append(" AND MONTH(fecha) = ?");
-                }
-                sql.append(" ORDER BY fecha ASC");
-
-                PreparedStatement stmt = conexion.prepareStatement(sql.toString());
-                int index = 1;
-                if (!codigo.isEmpty()) {
-                    stmt.setString(index++, codigo);
-                }
-                if (!anio.isEmpty()) {
-                    stmt.setInt(index++, Integer.parseInt(anio));
-                }
-                if (mes > 0) {
-                    stmt.setInt(index++, mes);
-                }
-
-                ResultSet rs = stmt.executeQuery();
-
-                DefaultTableModel modeloReporte = new DefaultTableModel();
-                modeloReporte.addColumn("Código");
-                modeloReporte.addColumn("Nombre");
-                modeloReporte.addColumn("Fecha");
-                modeloReporte.addColumn("Hora");
-
-                boolean hayResultados = false;
-                while (rs.next()) {
-                    hayResultados = true;
-                    String[] partes = rs.getString("fecha").split(" ");
-                    modeloReporte.addRow(new Object[]{
-                        rs.getString("uid"),
-                        rs.getString("nombre"),
-                        partes[0],
-                        partes.length > 1 ? partes[1] : ""
-                    });
-                }
-
-                if (!hayResultados) {
-                    JOptionPane.showMessageDialog(dialogo, "No se encontraron registros.");
-                    return;
-                }
-
-                JDialog resultado = new JDialog(dialogo, "Resultados", true);
-                resultado.setLayout(new BorderLayout());
-                resultado.getContentPane().setBackground(new Color(20, 20, 30));
-                resultado.setSize(800, 400);
-
-                JTable tabla = new JTable(modeloReporte);
-                resultado.add(new JScrollPane(tabla), BorderLayout.CENTER);
-                
-                tabla.setShowGrid(true);
-                tabla.setGridColor(new Color(138, 43, 226));
-                tabla.setForeground(Color.WHITE);
-                tabla.setBackground(new Color(20, 20, 30));
-                tabla.setSelectionBackground(new Color(138, 43, 226));
-                tabla.setSelectionForeground(Color.BLACK);
-                tabla.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                tabla.setRowHeight(28);
-
-                JPanel panelBotones = new JPanel();
-                JButton btnLimpiar = new JButton("Limpiar Búsqueda");
-                Color BotonFondo = new Color(138, 43, 226);
-                Color BotonTexto = Color.WHITE;
-                btnLimpiar.setBackground(BotonFondo);
-                btnLimpiar.setForeground(BotonTexto);
-                btnLimpiar.setFocusPainted(false);
-                btnLimpiar.setFont(new Font("SansSerif", Font.BOLD, 14));
-                
-                
-                
-                //agregando imagen al los botones de exportacion
-                ImageIcon iconoPDF = new ImageIcon("src/imagenes/icono_pdf.jpg");
-                ImageIcon iconoEXCEL = new ImageIcon("src/imagenes/icono_excel.jpg");
-                
-                Image imgPDF = iconoPDF.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
-                Image imgEXCEL = iconoEXCEL.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
-                
-                ImageIcon iconoPDFEscalado = new ImageIcon(imgPDF);
-                ImageIcon iconoEXCELEscalado = new ImageIcon(imgEXCEL);
-                
-                JButton btnExportarPDF = new JButton(iconoPDFEscalado);
-                btnExportarPDF.setToolTipText("Exportar PDF");
-                btnExportarPDF.setBorder(BorderFactory.createLineBorder(new Color(138, 43, 226)));
-                btnExportarPDF.setFocusPainted(false);
-                btnExportarPDF.setContentAreaFilled(false);
-                
-                
-                
-                JButton btnExportarExcel = new JButton(iconoEXCELEscalado);
-                btnExportarExcel.setToolTipText("Exportar EXCEL");
-                btnExportarExcel.setFocusPainted(false);
-                btnExportarExcel.setBorder(BorderFactory.createLineBorder(new Color(138, 43, 226)));
-                btnExportarExcel.setContentAreaFilled(false);
-               
-                
-                
-                // Exportar PDF
-                btnExportarPDF.addActionListener(ev -> {
-                    JFileChooser fileChooser = new JFileChooser();
-                    fileChooser.setSelectedFile(new File("reporte.pdf"));
-                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
-                        try {
-                            Document document = new Document();
-                            PdfWriter.getInstance(document, new FileOutputStream(fileChooser.getSelectedFile()));
-                            document.open();
-
-                            PdfPTable pdfTable = new PdfPTable(tabla.getColumnCount());
-                            for (int i = 0; i < tabla.getColumnCount(); i++) {
-                                pdfTable.addCell(tabla.getColumnName(i));
-                            }
-                            for (int i = 0; i < tabla.getRowCount(); i++) {
-                                for (int j = 0; j < tabla.getColumnCount(); j++) {
-                                    pdfTable.addCell(tabla.getValueAt(i, j).toString());
-                                }
-                            }
-
-                            document.add(new Paragraph("Reporte de Asistencia"));
-                            document.add(pdfTable);
-                            document.close();
-                            JOptionPane.showMessageDialog(resultado, "PDF exportado correctamente.");
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(resultado, "Error al exportar PDF: " + ex.getMessage());
-                        }
-                    }
-                });
-
-                // Exportar Excel
-                btnExportarExcel.addActionListener(ev -> {
-                    JFileChooser fileChooser = new JFileChooser();
-                    fileChooser.setSelectedFile(new File("reporte.xlsx"));
-                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
-                        try (Workbook workbook = new XSSFWorkbook()) {
-                            Sheet sheet = workbook.createSheet("Reporte");
-                            Row header = sheet.createRow(0);
-                            for (int i = 0; i < tabla.getColumnCount(); i++) {
-                                header.createCell(i).setCellValue(tabla.getColumnName(i));
-                            }
-                            for (int i = 0; i < tabla.getRowCount(); i++) {
-                                Row row = sheet.createRow(i + 1);
-                                for (int j = 0; j < tabla.getColumnCount(); j++) {
-                                    row.createCell(j).setCellValue(tabla.getValueAt(i, j).toString());
-                                }
-                            }
-                            FileOutputStream fileOut = new FileOutputStream(fileChooser.getSelectedFile());
-                            workbook.write(fileOut);
-                            fileOut.close();
-                            JOptionPane.showMessageDialog(resultado, "Excel exportado correctamente.");
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(resultado, "Error al exportar Excel: " + ex.getMessage());
-                        }
-                    }
-                });
-
-                btnLimpiar.addActionListener(ev -> {
-                    campoCodigo.setText("");
-                    resultado.dispose();
-                    escanearUID.run();
-                });
-
-                panelBotones.add(btnLimpiar);
-                panelBotones.add(btnExportarPDF);
-                panelBotones.add(btnExportarExcel);
-                resultado.add(panelBotones, BorderLayout.SOUTH);
-
-                resultado.setLocationRelativeTo(dialogo);
-                resultado.setVisible(true);
-
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialogo, "Error: " + ex.getMessage());
-            }
-        });
-        dialogo.setLocationRelativeTo(ventana);
-        dialogo.setVisible(true);
-    }*/
     
     private static void mostrarReporte() {
         JDialog dialogo = new JDialog(ventana, "Reporte de Asistencia", true);
@@ -1160,13 +783,6 @@ public class ControlDocentes {
                     DefaultCategoryDataset datasetBarra = new DefaultCategoryDataset();
                     DefaultPieDataset<String> datasetTorta = new DefaultPieDataset<>();
 
-                    /*
-                    PASADO FUNCIONAL
-                    for (Map.Entry<String, Integer> entry : conteoPorMes.entrySet()) {
-                        //datasetBarra.addValue(entry.getValue(), "Asistencias", entry.getKey());
-                        //datasetTorta.setValue(entry.getKey(), entry.getValue());
-                    }
-                    */
                     
                     //FUNCION ACTUALIZADA BARRA-TORTA
                     String[] nombresMeses = new DateFormatSymbols().getMonths();
@@ -1178,15 +794,6 @@ public class ControlDocentes {
                         datasetBarra.addValue(cantidad, "Asistencias", mesNombre);
                         datasetTorta.setValue(mesNombre, cantidad);
                     }
-
-                    /*
-                     PASADO FUNCIONAL
-                    JFreeChart chartBarra = ChartFactory.createBarChart(
-                            "Asistencias por Mes", "Mes", "Cantidad", datasetBarra,
-                            PlotOrientation.VERTICAL, false, true, false);
-                    JFreeChart chartTorta = ChartFactory.createPieChart(
-                            "Distribución de Asistencias", datasetTorta, true, true, false);
-                    */
                     
                     //BARRA ACTUALIZADA
                     JFreeChart chartBarra = ChartFactory.createBarChart(
@@ -1355,6 +962,8 @@ public class ControlDocentes {
                 } else {
                     JOptionPane.showMessageDialog(ventana, "No se encontró el registro.");
                 }
+                //mesaje al GMAIL
+                EmailUtil.enviarCorreo("Docente eliminado", "Se ha eliminado al docente: "+ nombre);
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
             }
@@ -1389,116 +998,6 @@ public class ControlDocentes {
         }
     }
     
-    //metodo para actualizar registro si existe errores de duplicidad de nombre, etc.
-    /*private static void actualizarRegistro() {
-        JDialog dialogo = new JDialog(ventana, "Actualizar Registro de Docente", true);
-        dialogo.setLayout(new GridLayout(11, 2, 5, 5));
-        dialogo.setSize(400, 400);
-
-        JTextField campoCodigo = new JTextField();
-        campoCodigo.setEditable(false);// no editable el campo cod_docente para auto llenado de datos
-
-        JTextField campoNombre = new JTextField();
-        JTextField campoApellidoPaterno = new JTextField();
-        JTextField campoApellidoMaterno = new JTextField();
-        JTextField campoHoraEntrada = new JTextField();
-        JTextField campoHoraSalida = new JTextField();
-        JTextField campoCantidadAlumnado = new JTextField();
-        JTextField campoMateria = new JTextField();
-        JTextField campoAula = new JTextField();
-        JTextField campoTurno = new JTextField();
-
-        dialogo.add(new JLabel("Código RFID del docente (escaneado):"));
-        dialogo.add(campoCodigo);
-        dialogo.add(new JLabel("Nombre:"));
-        dialogo.add(campoNombre);
-        dialogo.add(new JLabel("Apellido Paterno:"));
-        dialogo.add(campoApellidoPaterno);
-        dialogo.add(new JLabel("Apellido Materno:"));
-        dialogo.add(campoApellidoMaterno);
-        dialogo.add(new JLabel("Hora Entrada:"));
-        dialogo.add(campoHoraEntrada);
-        dialogo.add(new JLabel("Hora Salida:"));
-        dialogo.add(campoHoraSalida);
-        dialogo.add(new JLabel("Cantidad Alumnado:"));
-        dialogo.add(campoCantidadAlumnado);
-        dialogo.add(new JLabel("Materia:"));
-        dialogo.add(campoMateria);
-        dialogo.add(new JLabel("Aula:"));
-        dialogo.add(campoAula);
-        dialogo.add(new JLabel("Turno:"));
-        dialogo.add(campoTurno);
-
-        JButton btnActualizar = new JButton("Actualizar");
-        dialogo.add(new JLabel());
-        dialogo.add(btnActualizar);
-
-        // Runnable para escanear el UID
-        Runnable escanearUID = () -> {
-            new Thread(() -> {
-                SerialPort puerto = SerialPort.getCommPorts()[0];
-                puerto.setComPortParameters(9600, 8, 1, 0);
-                puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-
-                if (puerto.openPort()) {
-                    Scanner scanner = new Scanner(puerto.getInputStream());
-                    while (dialogo.isVisible() && campoCodigo.getText().isEmpty()) {
-                        if (scanner.hasNextLine()) {
-                            String codigo = scanner.nextLine().trim();
-                            SwingUtilities.invokeLater(() -> {
-                                campoCodigo.setText(codigo);
-                                cargarDatosDocente(codigo, campoNombre, campoApellidoPaterno, campoApellidoMaterno,
-                                        campoHoraEntrada, campoHoraSalida, campoCantidadAlumnado,
-                                        campoMateria, campoAula, campoTurno);
-                            });
-                            break;
-                        }
-                    }
-                    scanner.close();
-                    puerto.closePort();
-                }
-            }).start();
-        };
-
-        // Iniciar escaneo desde el principio
-        escanearUID.run();
-
-        // Botón para actualizar el registro
-        btnActualizar.addActionListener(e -> {
-            String codigo = campoCodigo.getText().trim();
-
-            if (codigo.isEmpty()) {
-                JOptionPane.showMessageDialog(dialogo, "Por favor, escanee primero la tarjeta RFID.");
-                return;
-            }
-
-            try {
-                // Actualizar los datos del docente en la base de datos
-                PreparedStatement stmt = conexion.prepareStatement(
-                        "UPDATE docentes SET nombre=?, apellido_paterno=?, apellido_materno=?, hora_entrada=?, hora_salida=?, cantidad_alumnado=?, materia=?, aula=?, turno=? WHERE cod_docente=?"
-                );
-                stmt.setString(1, campoNombre.getText());
-                stmt.setString(2, campoApellidoPaterno.getText());
-                stmt.setString(3, campoApellidoMaterno.getText());
-                stmt.setString(4, campoHoraEntrada.getText());
-                stmt.setString(5, campoHoraSalida.getText());
-                stmt.setString(6, campoCantidadAlumnado.getText());
-                stmt.setString(7, campoMateria.getText());
-                stmt.setString(8, campoAula.getText());
-                stmt.setString(9, campoTurno.getText());
-                stmt.setString(10, codigo);
-                stmt.executeUpdate();
-
-                JOptionPane.showMessageDialog(dialogo, "Datos actualizados correctamente.");
-                dialogo.dispose();  // Cierra el diálogo después de actualizar
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialogo, "Error al actualizar el registro: " + ex.getMessage());
-            }
-        });
-
-        dialogo.setLocationRelativeTo(ventana);
-        dialogo.setVisible(true);
-    }*/
     private static void actualizarRegistro() {
         JDialog dialogo = new JDialog(ventana, "Actualizar Registro de Docente", true);
         dialogo.setLayout(new GridLayout(11, 2, 5, 5));
@@ -1636,7 +1135,7 @@ public class ControlDocentes {
                 stmt.setString(9, campoTurno.getText());
                 stmt.setString(10, codigo);
                 stmt.executeUpdate();
-
+                EmailUtil.enviarCorreo("Nuevo Registro", "Se ha eliminado al docente: "+ campoNombre);
                 JOptionPane.showMessageDialog(dialogo, "Datos actualizados correctamente.");
                 dialogo.dispose();
             } catch (Exception ex) {
@@ -1676,6 +1175,8 @@ public class ControlDocentes {
             JOptionPane.showMessageDialog(ventana, "Error al cargar los datos: " + e.getMessage());
         }
     }
+    
+    
     
     //metodo de mostradatos() actualizado en estilo y carga de fotos de docente
     private static void mostrarDatos() {
@@ -1745,46 +1246,6 @@ public class ControlDocentes {
 
         dialogo.setVisible(true);
     }
-    
-    // metodo para mostrar en consola cada escaneo de tarjeta rfid
-    /*private static void iniciarControlRFID() {
-        JDialog lectorDialog = new JDialog(ventana, "Escanear Tarjeta", true);
-        lectorDialog.setSize(300, 150);
-        lectorDialog.setLayout(new BorderLayout());
-
-        JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
-        lectorDialog.add(mensaje, BorderLayout.CENTER);
-
-        new Thread(() -> {
-            SerialPort puerto = null;
-            for (SerialPort sp : SerialPort.getCommPorts()) {
-                if (sp.getSystemPortName().equals("COM4")) {
-                    puerto = sp;
-                    break;
-                }
-            }
-            puerto.setComPortParameters(9600, 8, 1, 0);
-            puerto.setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-            if (puerto.openPort()) {
-                Scanner scanner = new Scanner(puerto.getInputStream());
-                while (lectorDialog.isVisible()) {
-                    if (scanner.hasNextLine()) {
-                        String uid = scanner.nextLine().trim();
-                        System.out.println("UID detectado: " + uid);
-                        registrarAsistencia(uid);
-                        mostrarDatosDocente(uid);
-                        lectorDialog.dispose();
-                        break;
-                    }
-                }
-                scanner.close();
-                puerto.closePort();
-            }
-        }).start();
-
-        lectorDialog.setLocationRelativeTo(ventana);
-        lectorDialog.setVisible(true);
-    }*/
     
     private static volatile boolean lectorActivo = false;
     private static Thread hiloRFID = null;
@@ -1869,16 +1330,18 @@ public class ControlDocentes {
 
                         if (!uidsLeidos.contains(uid)) {
                             System.out.println("UID detectado: " + uid);
-                            registrarAsistencia(uid);
+                            registrarAsistencia(uid, puerto[0]);
                             mostrarDatosDocente(uid);
+
                             uidsLeidos.add(uid);
 
+                            // Permitir nueva lectura del mismo UID después de 5 segundos
                             new java.util.Timer().schedule(new java.util.TimerTask() {
                                 @Override
                                 public void run() {
                                     uidsLeidos.remove(uid);
                                 }
-                            }, 2000);
+                            }, 3000);
                         }
                     }
                 }
@@ -1906,8 +1369,21 @@ public class ControlDocentes {
         lectorDialog.setLocationRelativeTo(ventana);
         lectorDialog.setVisible(true);
     }
-    
-    private static void registrarAsistencia(String uid) {
+
+    private static void enviarComandoAlArduino(SerialPort puerto, String comando) {
+        try {
+            if (puerto != null && puerto.isOpen()) {
+                puerto.getOutputStream().write((comando + "\n").getBytes());
+                puerto.getOutputStream().flush();
+                Thread.sleep(50); // pequeña pausa para enviar bien
+            } else {
+                System.err.println("⚠️ El puerto no está abierto para enviar comando.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    private static void registrarAsistencia(String uid, SerialPort puerto) {
         try {
             PreparedStatement stmt = conexion.prepareStatement("SELECT nombre FROM docentes WHERE cod_docente = ?");
             stmt.setString(1, uid);
@@ -1919,14 +1395,61 @@ public class ControlDocentes {
                 String hora = new SimpleDateFormat("HH:mm:ss").format(new Date());
 
                 // Mostrar saludo
-                JOptionPane.showMessageDialog(ventana, "Hola " + nombre + ", ¡Bienvenido!");
+                //JOptionPane.showMessageDialog(ventana, "Hola " + nombre + ", ¡Bienvenido!");
+                // Mostrar mensaje de bienvenida con cierre automático de mensaje
+                JDialog dialog = new JDialog(ventana, "Bienvenida", true);
+                JLabel label = new JLabel("Hola " + nombre + ", ¡Bienvenido!", SwingConstants.CENTER);
+                label.setFont(new Font("Arial", Font.PLAIN, 16));
+                dialog.getContentPane().add(label);
+                dialog.setSize(300, 120);
+                dialog.setLocationRelativeTo(ventana);
+                dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+                // Timer para cerrarlo automáticamente a los 3 segundos
+                new Timer().schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        dialog.dispose();
+                    }
+                }, 3000);
+
+                dialog.setVisible(true);
 
                 // Agregar a tabla en tiempo real
                 modeloAsistencia.addRow(new String[]{nombre, fecha, hora});
+                
+                // Abre la puerta
+                enviarComandoAlArduino(puerto, "OPEN");
+
+                // Cierra la puerta después de 5 segundos
+                new java.util.Timer().schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        enviarComandoAlArduino(puerto, "CLOSE");
+                    }
+                }, 5000);
 
                 // Aquí puedes insertar en una tabla de asistencia si la tienes en la base
             } else {
-                JOptionPane.showMessageDialog(ventana, "UID no registrado.");
+                //JOptionPane.showMessageDialog(ventana, "UID no registrado.");
+                // Mostrar mensaje de bienvenida con cierre automático de mensaje
+                JDialog dialog = new JDialog(ventana, "desconocido", true);
+                JLabel label = new JLabel("UID no registrado.", SwingConstants.CENTER);
+                label.setFont(new Font("Arial", Font.PLAIN, 16));
+                dialog.getContentPane().add(label);
+                dialog.setSize(300, 120);
+                dialog.setLocationRelativeTo(ventana);
+                dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+                
+                // Timer para cerrarlo automáticamente a los 3 segundos
+                new Timer().schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        dialog.dispose();
+                    }
+                }, 2000);
+
+                dialog.setVisible(true);
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
@@ -1954,7 +1477,25 @@ public class ControlDocentes {
                 insertarAsistencia.executeUpdate();
                 insertarAsistencia.close();
             } else {
-                JOptionPane.showMessageDialog(ventana, "No se encontró ningún docente con este UID.");
+                //JOptionPane.showMessageDialog(ventana, "No se encontró ningún docente con este UID.");
+                // Mostrar mensaje de bienvenida con cierre automático de mensaje
+                JDialog dialog = new JDialog(ventana, "sin registro", true);
+                JLabel label = new JLabel("No se encontró ningún docente con este UID.", SwingConstants.CENTER);
+                label.setFont(new Font("Arial", Font.PLAIN, 16));
+                dialog.getContentPane().add(label);
+                dialog.setSize(300, 120);
+                dialog.setLocationRelativeTo(ventana);
+                dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+                
+                // Timer para cerrarlo automáticamente a los 3 segundos
+                new Timer().schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        dialog.dispose();
+                    }
+                }, 3000);
+
+                dialog.setVisible(true);
             }
             stmt.close();
         } catch (SQLException e) {
@@ -2104,6 +1645,7 @@ public class ControlDocentes {
             PreparedStatement stmt = conexion.prepareStatement("SELECT nombre FROM docentes WHERE cod_docente = ?");
             stmt.setString(1, uid);
             ResultSet rs = stmt.executeQuery();
+            EmailUtil.enviarCorreo("perfil docente", "Docente ingreso a su perfil su codigo es: "+ uid);
             if (rs.next()) {
                 txtNombre.setText(rs.getString("nombre"));
                 btnIniciar.setEnabled(true);
