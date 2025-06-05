@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.*;
 
 import com.lowagie.text.Document;
 import com.lowagie.text.Paragraph;
+import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import com.mycompany.controldocentes.notificacionesGmail.EmailUtil;
@@ -29,10 +30,13 @@ import java.awt.event.FocusEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.text.DateFormatSymbols;
@@ -60,10 +64,13 @@ import org.jfree.data.general.DefaultPieDataset;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.swing.table.JTableHeader;
+import org.jfree.chart.ChartUtils;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.labels.StandardPieSectionLabelGenerator;
 import org.jfree.chart.plot.PiePlot;
 import org.jfree.chart.ui.RectangleEdge;
+
+
 
 public class ControlDocentes {
 
@@ -71,6 +78,7 @@ public class ControlDocentes {
     private static JFrame ventana;
     private static JTable tablaAsistencia;
     private static DefaultTableModel modeloAsistencia;
+   
 
     public static void main(String[] args) {
         conectarBaseDatos();
@@ -712,6 +720,10 @@ public class ControlDocentes {
                     JOptionPane.showMessageDialog(dialogo, "No se encontraron registros.");
                     return;
                 }
+                
+                EmailUtil.enviarCorreo("reporte generado", "El perdonal administrativo genero un reporte para el UID: " 
+                        +(codigo.isEmpty() ? "Todos" : codigo)+", Mes: "+(mes > 0 ? comboMes.getSelectedItem() : "Todos") 
+                        + ", Año: " + (anio.isEmpty() ? "Todos" : anio));
 
                 JDialog resultado = new JDialog(dialogo, "Resultados", true);
                 resultado.setLayout(new BorderLayout());
@@ -836,15 +848,22 @@ public class ControlDocentes {
                     ventanaGrafico.setLocationRelativeTo(resultado);
                     ventanaGrafico.setVisible(true);
                 });
-
+/*
                 btnExportarPDF.addActionListener(ev -> {
                     JFileChooser fileChooser = new JFileChooser();
                     fileChooser.setSelectedFile(new File("reporte.pdf"));
+
                     if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
                         try {
                             Document document = new Document();
                             PdfWriter.getInstance(document, new FileOutputStream(fileChooser.getSelectedFile()));
                             document.open();
+
+                            // Título
+                            document.add(new Paragraph("Reporte de Asistencia"));
+                            document.add(new Paragraph(" ")); // Espacio
+
+                            // Tabla de datos
                             PdfPTable pdfTable = new PdfPTable(tabla.getColumnCount());
                             for (int i = 0; i < tabla.getColumnCount(); i++) {
                                 pdfTable.addCell(tabla.getColumnName(i));
@@ -854,16 +873,206 @@ public class ControlDocentes {
                                     pdfTable.addCell(tabla.getValueAt(i, j).toString());
                                 }
                             }
-                            document.add(new Paragraph("Reporte de Asistencia"));
                             document.add(pdfTable);
+
+                            // Espacio antes de las gráficas
+                            document.add(new Paragraph(" "));
+                            document.add(new Paragraph("Estadísticas de Asistencia:"));
+                            document.add(new Paragraph(" "));
+
+                            // Crear los datasets para las gráficas
+                            Map<String, Integer> conteoPorMes = new HashMap<>();
+                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                try {
+                                    Date fecha = sdf.parse(tabla.getValueAt(i, 2).toString());
+                                    Calendar cal = Calendar.getInstance();
+                                    cal.setTime(fecha);
+                                    int mesIndex = cal.get(Calendar.MONTH);
+                                    String mesNombre = new DateFormatSymbols().getMonths()[mesIndex];
+                                    conteoPorMes.put(mesNombre, conteoPorMes.getOrDefault(mesNombre, 0) + 1);
+                                } catch (ParseException ex) {
+                                    ex.printStackTrace();
+                                }
+                            }
+
+                            DefaultCategoryDataset datasetBarra = new DefaultCategoryDataset();
+                            DefaultPieDataset<String> datasetTorta = new DefaultPieDataset<>();
+                            String[] nombresMeses = new DateFormatSymbols().getMonths();
+                            int mesActual = Calendar.getInstance().get(Calendar.MONTH);
+                            for (int i = 0; i <= mesActual; i++) {
+                                String mesNombre = nombresMeses[i];
+                                int cantidad = conteoPorMes.getOrDefault(mesNombre, 0);
+                                datasetBarra.addValue(cantidad, "Asistencias", mesNombre);
+                                datasetTorta.setValue(mesNombre, cantidad);
+                            }
+
+                            // Crear gráficas
+                            JFreeChart chartBarra = ChartFactory.createBarChart(
+                                    "Asistencias por Mes", "Mes", "Cantidad", datasetBarra,
+                                    PlotOrientation.VERTICAL, false, true, false
+                            );
+                            chartBarra.setBackgroundPaint(Color.WHITE);
+
+                            JFreeChart chartTorta = ChartFactory.createPieChart(
+                                    "Distribución de Asistencias", datasetTorta, true, true, false
+                            );
+                            chartTorta.setBackgroundPaint(Color.WHITE);
+
+                            // Guardar imágenes temporales
+                            BufferedImage imgBarra = chartBarra.createBufferedImage(600, 400);
+                            BufferedImage imgTorta = chartTorta.createBufferedImage(600, 400);
+
+                            File imgBarraFile = new File("chart_barra.png");
+                            File imgTortaFile = new File("chart_torta.png");
+                            ImageIO.write(imgBarra, "png", imgBarraFile);
+                            ImageIO.write(imgTorta, "png", imgTortaFile);
+
+                            // Agregar imágenes al PDF
+                            com.lowagie.text.Image imgBarraPDF = com.lowagie.text.Image.getInstance(imgBarraFile.getAbsolutePath());
+                            imgBarraPDF.scaleToFit(500, 300);
+                            document.add(imgBarraPDF);
+
+                            com.lowagie.text.Image imgTortaPDF = com.lowagie.text.Image.getInstance(imgTortaFile.getAbsolutePath());
+                            imgTortaPDF.scaleToFit(500, 300);
+                            document.add(imgTortaPDF);
+
                             document.close();
                             JOptionPane.showMessageDialog(resultado, "PDF exportado correctamente.");
                         } catch (Exception ex) {
                             JOptionPane.showMessageDialog(resultado, "Error al exportar PDF: " + ex.getMessage());
+                            ex.printStackTrace();
+                        }
+                    }
+                });*/
+
+                btnExportarPDF.addActionListener(ev -> {
+                    JFileChooser fileChooser = new JFileChooser();
+                    fileChooser.setSelectedFile(new File("reporte.pdf"));
+
+                    if (fileChooser.showSaveDialog(resultado) == JFileChooser.APPROVE_OPTION) {
+                        try {
+                            Document document = new Document();
+                            PdfWriter.getInstance(document, new FileOutputStream(fileChooser.getSelectedFile()));
+                            document.open();
+
+                            // === LOGOS Y TÍTULO SUPERIOR ===
+                            // Rutas de los logos
+                            String rutaLogoIzq = "src/imagenes/usb_logo.png";
+                            String rutaLogoDer = "src/imagenes/ACN_logo.png";
+
+                            // Logos
+                            com.lowagie.text.Image logoIzq = com.lowagie.text.Image.getInstance(rutaLogoIzq);
+                            com.lowagie.text.Image logoDer = com.lowagie.text.Image.getInstance(rutaLogoDer);
+                            logoIzq.scaleAbsolute(100, 50);
+                            logoDer.scaleAbsolute(100, 50);
+
+                            // Título centrado
+                            Paragraph titulo = new Paragraph("REPORTE DE ASISTENCIA", new com.lowagie.text.Font(com.lowagie.text.Font.HELVETICA, 18, com.lowagie.text.Font.BOLD));
+                            titulo.setAlignment(Paragraph.ALIGN_CENTER);
+
+                            // Tabla para colocar logos y título
+                            PdfPTable encabezado = new PdfPTable(3);
+                            encabezado.setWidthPercentage(100);
+                            encabezado.setWidths(new int[]{1, 2, 1});
+                            encabezado.getDefaultCell().setBorder(0);
+
+                            PdfPCell celdaLogoIzq = new PdfPCell(logoIzq);
+                            PdfPCell celdaTitulo = new PdfPCell(titulo);
+                            PdfPCell celdaLogoDer = new PdfPCell(logoDer);
+
+                            celdaLogoIzq.setBorder(0);
+                            celdaTitulo.setBorder(0);
+                            celdaLogoDer.setBorder(0);
+
+                            celdaLogoIzq.setHorizontalAlignment(PdfPCell.ALIGN_LEFT);
+                            celdaTitulo.setHorizontalAlignment(PdfPCell.ALIGN_CENTER);
+                            celdaLogoDer.setHorizontalAlignment(PdfPCell.ALIGN_RIGHT);
+
+                            encabezado.addCell(celdaLogoIzq);
+                            encabezado.addCell(celdaTitulo);
+                            encabezado.addCell(celdaLogoDer);
+
+                            document.add(encabezado);
+                            document.add(new Paragraph(" ")); // espacio debajo
+
+                            // === TABLA DE ASISTENCIA ===
+                            PdfPTable pdfTable = new PdfPTable(tabla.getColumnCount());
+                            for (int i = 0; i < tabla.getColumnCount(); i++) {
+                                pdfTable.addCell(tabla.getColumnName(i));
+                            }
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                for (int j = 0; j < tabla.getColumnCount(); j++) {
+                                    pdfTable.addCell(tabla.getValueAt(i, j).toString());
+                                }
+                            }
+                            document.add(pdfTable);
+
+                            // === GRÁFICAS ===
+                            document.add(new Paragraph(" "));
+                            document.add(new Paragraph("Estadísticas de Asistencia:"));
+                            document.add(new Paragraph(" "));
+
+                            Map<String, Integer> conteoPorMes = new HashMap<>();
+                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                            for (int i = 0; i < tabla.getRowCount(); i++) {
+                                try {
+                                    Date fecha = sdf.parse(tabla.getValueAt(i, 2).toString());
+                                    Calendar cal = Calendar.getInstance();
+                                    cal.setTime(fecha);
+                                    int mesIndex = cal.get(Calendar.MONTH);
+                                    String mesNombre = new DateFormatSymbols().getMonths()[mesIndex];
+                                    conteoPorMes.put(mesNombre, conteoPorMes.getOrDefault(mesNombre, 0) + 1);
+                                } catch (ParseException ex) {
+                                    ex.printStackTrace();
+                                }
+                            }
+
+                            DefaultCategoryDataset datasetBarra = new DefaultCategoryDataset();
+                            DefaultPieDataset<String> datasetTorta = new DefaultPieDataset<>();
+                            String[] nombresMeses = new DateFormatSymbols().getMonths();
+                            int mesActual = Calendar.getInstance().get(Calendar.MONTH);
+                            for (int i = 0; i <= mesActual; i++) {
+                                String mesNombre = nombresMeses[i];
+                                int cantidad = conteoPorMes.getOrDefault(mesNombre, 0);
+                                datasetBarra.addValue(cantidad, "Asistencias", mesNombre);
+                                datasetTorta.setValue(mesNombre, cantidad);
+                            }
+
+                            JFreeChart chartBarra = ChartFactory.createBarChart("Asistencias por Mes", "Mes", "Cantidad", datasetBarra, PlotOrientation.VERTICAL, false, true, false);
+                            chartBarra.setBackgroundPaint(Color.WHITE);
+
+                            JFreeChart chartTorta = ChartFactory.createPieChart("Distribución de Asistencias", datasetTorta, true, true, false);
+                            chartTorta.setBackgroundPaint(Color.WHITE);
+
+                            BufferedImage imgBarra = chartBarra.createBufferedImage(600, 400);
+                            BufferedImage imgTorta = chartTorta.createBufferedImage(600, 400);
+
+                            File imgBarraFile = new File("chart_barra.png");
+                            File imgTortaFile = new File("chart_torta.png");
+                            ImageIO.write(imgBarra, "png", imgBarraFile);
+                            ImageIO.write(imgTorta, "png", imgTortaFile);
+
+                            com.lowagie.text.Image imgBarraPDF = com.lowagie.text.Image.getInstance(imgBarraFile.getAbsolutePath());
+                            imgBarraPDF.scaleToFit(500, 300);
+                            document.add(imgBarraPDF);
+
+                            com.lowagie.text.Image imgTortaPDF = com.lowagie.text.Image.getInstance(imgTortaFile.getAbsolutePath());
+                            imgTortaPDF.scaleToFit(500, 300);
+                            document.add(imgTortaPDF);
+
+                            // Opcional: eliminar archivos temporales
+                            imgBarraFile.delete();
+                            imgTortaFile.delete();
+
+                            document.close();
+                            JOptionPane.showMessageDialog(resultado, "PDF exportado correctamente.");
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(resultado, "Error al exportar PDF: " + ex.getMessage());
+                            ex.printStackTrace();
                         }
                     }
                 });
-
                 btnExportarExcel.addActionListener(ev -> {
                     JFileChooser fileChooser = new JFileChooser();
                     fileChooser.setSelectedFile(new File("reporte.xlsx"));
@@ -880,8 +1089,14 @@ public class ControlDocentes {
                                     row.createCell(j).setCellValue(tabla.getValueAt(i, j).toString());
                                 }
                             }
+                            //ajuste de columnas automaticamente
+                            for(int i = 0; 9< tabla.getColumnCount(); i++){
+                                sheet.autoSizeColumn(i);
+                            }
+                            
                             FileOutputStream fileOut = new FileOutputStream(fileChooser.getSelectedFile());
                             workbook.write(fileOut);
+                            
                             fileOut.close();
                             JOptionPane.showMessageDialog(resultado, "Excel exportado correctamente.");
                         } catch (Exception ex) {
@@ -944,6 +1159,8 @@ public class ControlDocentes {
         try {
             Statement stmt = conexion.createStatement();
             stmt.executeUpdate("DROP TABLE IF EXISTS asistencia");
+            EmailUtil.enviarCorreo("Tabla eliminada", 
+                                   "La tabla de Docentes se a eliminado de parte del personal administratico");
             JOptionPane.showMessageDialog(ventana, "Tabla eliminada correctamente.");
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(ventana, "Error al eliminar la tabla: " + e.getMessage());
@@ -963,7 +1180,7 @@ public class ControlDocentes {
                     JOptionPane.showMessageDialog(ventana, "No se encontró el registro.");
                 }
                 //mesaje al GMAIL
-                EmailUtil.enviarCorreo("Docente eliminado", "Se ha eliminado al docente: "+ nombre);
+                EmailUtil.enviarCorreo("Docente eliminado", "Se ha eliminado al docente: " + nombre);
             } catch (SQLException e) {
                 JOptionPane.showMessageDialog(ventana, "Error: " + e.getMessage());
             }
@@ -1135,7 +1352,7 @@ public class ControlDocentes {
                 stmt.setString(9, campoTurno.getText());
                 stmt.setString(10, codigo);
                 stmt.executeUpdate();
-                EmailUtil.enviarCorreo("Nuevo Registro", "Se ha eliminado al docente: "+ campoNombre);
+                EmailUtil.enviarCorreo("Registro actualizado", "Se ha Actualizado datos del docente: "+ campoNombre.getText());
                 JOptionPane.showMessageDialog(dialogo, "Datos actualizados correctamente.");
                 dialogo.dispose();
             } catch (Exception ex) {
@@ -1276,6 +1493,8 @@ public class ControlDocentes {
         JLabel mensaje = new JLabel("Por favor, escanee su tarjeta...", SwingConstants.CENTER);
         lectorDialog.add(mensaje, BorderLayout.CENTER);
 
+        EmailUtil.enviarCorreo("Control de asistencia iniciado", "el personal administrativo inicion el control de asistencia");
+        
         JButton btnFinalizar = new JButton("Finalizar");
         lectorDialog.add(btnFinalizar, BorderLayout.SOUTH);
 
@@ -1388,7 +1607,8 @@ public class ControlDocentes {
             PreparedStatement stmt = conexion.prepareStatement("SELECT nombre FROM docentes WHERE cod_docente = ?");
             stmt.setString(1, uid);
             ResultSet rs = stmt.executeQuery();
-
+            
+            
             if (rs.next()) {
                 String nombre = rs.getString("nombre");
                 String fecha = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
@@ -1440,6 +1660,7 @@ public class ControlDocentes {
                 dialog.setSize(300, 120);
                 dialog.setLocationRelativeTo(ventana);
                 dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+                enviarComandoAlArduino(puerto, "DENEGADO");
                 
                 // Timer para cerrarlo automáticamente a los 3 segundos
                 new Timer().schedule(new TimerTask() {
